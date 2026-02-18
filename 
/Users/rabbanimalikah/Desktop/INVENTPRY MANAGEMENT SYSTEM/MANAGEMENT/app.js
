@@ -1,0 +1,858 @@
+// Inventory Management System - Frontend Application
+
+// API Configuration
+const API_BASE = 'http://localhost:3000/api/v1';
+
+// Sample Data
+let products = [
+    { id: 1, name: 'Laptop Pro 15', sku: 'LP-001', category: 'Electronics', price: 1299.99, stock: 45, minStock: 10, status: 'in-stock' },
+    { id: 2, name: 'Wireless Mouse', sku: 'WM-002', category: 'Electronics', price: 29.99, stock: 150, minStock: 20, status: 'in-stock' },
+    { id: 3, name: 'USB-C Cable', sku: 'UC-003', category: 'Accessories', price: 12.99, stock: 8, minStock: 15, status: 'low-stock' },
+    { id: 4, name: 'Monitor 27"', sku: 'MN-004', category: 'Electronics', price: 449.99, stock: 0, minStock: 5, status: 'out-of-stock' },
+    { id: 5, name: 'Keyboard Mechanical', sku: 'KM-005', category: 'Electronics', price: 89.99, stock: 35, minStock: 10, status: 'in-stock' },
+    { id: 6, name: 'Desk Lamp LED', sku: 'DL-006', category: 'Office', price: 34.99, stock: 60, minStock: 15, status: 'in-stock' },
+    { id: 7, name: 'Webcam HD', sku: 'WC-007', category: 'Electronics', price: 79.99, stock: 5, minStock: 8, status: 'low-stock' },
+    { id: 8, name: 'Headphones Wireless', sku: 'HW-008', category: 'Audio', price: 149.99, stock: 25, minStock: 10, status: 'in-stock' },
+    { id: 9, name: 'Power Bank 20000mAh', sku: 'PB-009', category: 'Accessories', price: 49.99, stock: 0, minStock: 10, status: 'out-of-stock' },
+    { id: 10, name: 'Laptop Stand', sku: 'LS-010', category: 'Office', price: 39.99, stock: 42, minStock: 12, status: 'in-stock' }
+];
+
+let categories = [
+    { id: 1, name: 'Electronics', icon: 'fa-laptop', count: 45, color: '#667eea' },
+    { id: 2, name: 'Accessories', icon: 'fa-headphones', count: 32, color: '#764ba2' },
+    { id: 3, name: 'Office', icon: 'fa-briefcase', count: 28, color: '#4facfe' },
+    { id: 4, name: 'Audio', icon: 'fa-music', count: 18, color: '#43e97b' },
+    { id: 5, name: 'Storage', icon: 'fa-hdd', count: 22, color: '#f5576c' },
+    { id: 6, name: 'Networking', icon: 'fa-wifi', count: 15, color: '#fa709a' }
+];
+
+let suppliers = [
+    { id: 1, name: 'Tech Supplies Co.', contact: 'John Smith', email: 'john@techsupplies.com', phone: '+1 555-0101', products: 25, status: 'active' },
+    { id: 2, name: 'Global Electronics', contact: 'Sarah Johnson', email: 'sarah@globalelec.com', phone: '+1 555-0102', products: 18, status: 'active' },
+    { id: 3, name: 'Office Pro Distributors', contact: 'Mike Brown', email: 'mike@officepro.com', phone: '+1 555-0103', products: 12, status: 'active' },
+    { id: 4, name: 'Accessory World', contact: 'Lisa Chen', email: 'lisa@accworld.com', phone: '+1 555-0104', products: 8, status: 'inactive' }
+];
+
+// DOM Elements
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.getElementById('sidebar');
+const navItems = document.querySelectorAll('.nav-item');
+const contentSections = document.querySelectorAll('.content-section');
+const modal = document.getElementById('modal');
+const modalClose = document.getElementById('modalClose');
+const modalTitle = document.getElementById('modalTitle');
+const modalBody = document.getElementById('modalBody');
+const toastContainer = document.getElementById('toastContainer');
+
+// Initialize Application
+document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+});
+
+function initializeApp() {
+    setupEventListeners();
+    loadDashboard();
+    loadProducts();
+    loadCategories();
+    loadInventory();
+    loadSuppliers();
+    initializeCharts();
+}
+
+// Event Listeners
+function setupEventListeners() {
+    // Mobile menu toggle
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    // Navigation items
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = item.dataset.section;
+            navigateToSection(section);
+        });
+    });
+
+    // Modal close
+    modalClose.addEventListener('click', closeModal);
+    modal.querySelector('.modal-overlay').addEventListener('click', closeModal);
+
+    // Close modal on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+}
+
+// Navigation
+function navigateToSection(sectionId) {
+    // Update active nav item
+    navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.section === sectionId);
+    });
+
+    // Show section
+    contentSections.forEach(section => {
+        section.classList.toggle('active', section.id === sectionId);
+    });
+
+    // Close mobile sidebar
+    sidebar.classList.remove('active');
+}
+
+// Dashboard
+function loadDashboard() {
+    // Update stats
+    document.getElementById('totalProducts').textContent = products.length;
+    document.getElementById('totalCategories').textContent = categories.length;
+    
+    const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
+    document.getElementById('totalStock').textContent = totalStock.toLocaleString();
+    
+    const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+    document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString(0, 2);
+
+    // Load recent activity
+    loadRecentActivity();
+
+    // Load low stock alerts
+    loadLowStockAlerts();
+}
+
+function loadRecentActivity() {
+    const container = document.getElementById('recentActivity');
+    const activities = [
+        { type: 'add', title: 'New Product Added', desc: 'Laptop Pro 15 was added to inventory', time: '2 hours ago' },
+        { type: 'edit', title: 'Stock Updated', desc: 'Wireless Mouse stock increased by 50 units', time: '4 hours ago' },
+        { type: 'warning', title: 'Low Stock Alert', desc: 'USB-C Cable is running low on stock', time: '5 hours ago' },
+        { type: 'delete', title: 'Product Removed', desc: 'Old model Keyboard removed from catalog', time: '1 day ago' }
+    ];
+
+    container.innerHTML = activities.map(a => `
+        <div class="activity-item">
+            <div class="activity-icon ${a.type}">
+                <i class="fas fa-${a.type === 'add' ? 'plus' : a.type === 'edit' ? 'pen' : a.type === 'delete' ? 'trash' : 'exclamation'}"></i>
+            </div>
+            <div class="activity-info">
+                <h4>${a.title}</h4>
+                <p>${a.desc}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadLowStockAlerts() {
+    const container = document.getElementById('lowStockAlerts');
+    const lowStockProducts = products.filter(p => p.status === 'low-stock' || p.status === 'out-of-stock').slice(0, 5);
+
+    container.innerHTML = lowStockProducts.map(p => `
+        <div class="low-stock-item">
+            <div class="low-stock-info">
+                <div class="low-stock-img">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div class="low-stock-details">
+                    <h4>${p.name}</h4>
+                    <p>SKU: ${p.sku} • Stock: ${p.stock}</p>
+                </div>
+            </div>
+            <span class="stock-badge ${p.status === 'low-stock' ? 'low' : 'out'}">
+                ${p.status === 'low-stock' ? 'Low Stock' : 'Out of Stock'}
+            </span>
+        </div>
+    `).join('');
+}
+
+// Products
+function loadProducts() {
+    const tbody = document.querySelector('#productsTable tbody');
+    
+    tbody.innerHTML = products.map(p => `
+        <tr>
+            <td><input type="checkbox"></td>
+            <td>
+                <div class="product-info">
+                    <div class="product-img">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div>
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-sku">${p.sku}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${p.sku}</td>
+            <td>${p.category}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td><span class="status-badge ${p.status}">${formatStatus(p.status)}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="action-btn edit" title="Edit" onclick="editProduct(${p.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn delete" title="Delete" onclick="deleteProduct(${p.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+
+    // Update pagination info
+    document.getElementById('totalItems').textContent = products.length;
+    document.getElementById('showingEnd').textContent = Math.min(10, products.length);
+
+    // Load category filter options
+    const categoryFilter = document.getElementById('categoryFilter');
+    categories.forEach(c => {
+        categoryFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+    });
+
+    // Setup add product button
+    document.getElementById('addProductBtn').addEventListener('click', () => showProductModal());
+}
+
+function formatStatus(status) {
+    const statusMap = {
+        'in-stock': 'In Stock',
+        'low-stock': 'Low Stock',
+        'out-of-stock': 'Out of Stock',
+        'active': 'Active',
+        'inactive': 'Inactive'
+    };
+    return statusMap[status] || status;
+}
+
+function showProductModal(product = null) {
+    modalTitle.textContent = product ? 'Edit Product' : 'Add Product';
+    
+    modalBody.innerHTML = `
+        <form id="productForm">
+            <div class="form-group">
+                <label>Product Name</label>
+                <input type="text" id="productName" value="${product ? product.name : ''}" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>SKU</label>
+                    <input type="text" id="productSku" value="${product ? product.sku : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="productCategory" required>
+                        <option value="">Select Category</option>
+                        ${categories.map(c => `<option value="${c.name}" ${product && product.category === c.name ? 'selected' : ''}>${c.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Price ($)</label>
+                    <input type="number" id="productPrice" value="${product ? product.price : ''}" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Initial Stock</label>
+                    <input type="number" id="productStock" value="${product ? product.stock : ''}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Minimum Stock Level</label>
+                <input type="number" id="productMinStock" value="${product ? product.minStock : 10}">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> ${product ? 'Update Product' : 'Add Product'}
+                </button>
+            </div>
+        </form>
+    `;
+
+    openModal();
+
+    document.getElementById('productForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveProduct(product ? product.id : null);
+    });
+}
+
+function saveProduct(productId) {
+    const productData = {
+        name: document.getElementById('productName').value,
+        sku: document.getElementById('productSku').value,
+        category: document.getElementById('productCategory').value,
+        price: parseFloat(document.getElementById('productPrice').value),
+        stock: parseInt(document.getElementById('productStock').value),
+        minStock: parseInt(document.getElementById('productMinStock').value)
+    };
+
+    // Determine status
+    if (productData.stock === 0) {
+        productData.status = 'out-of-stock';
+    } else if (productData.stock < productData.minStock) {
+        productData.status = 'low-stock';
+    } else {
+        productData.status = 'in-stock';
+    }
+
+    if (productId) {
+        // Update existing product
+        const index = products.findIndex(p => p.id === productId);
+        if (index !== -1) {
+            products[index] = { ...products[index], ...productData };
+            showToast('success', 'Product Updated', `${productData.name} has been updated successfully.`);
+        }
+    } else {
+        // Add new product
+        productData.id = Math.max(...products.map(p => p.id)) + 1;
+        products.push(productData);
+        showToast('success', 'Product Added', `${productData.name} has been added to inventory.`);
+    }
+
+    closeModal();
+    loadProducts();
+    loadDashboard();
+}
+
+function editProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (product) {
+        showProductModal(product);
+    }
+}
+
+function deleteProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (product && confirm(`Are you sure you want to delete "${product.name}"?`)) {
+        products = products.filter(p => p.id !== id);
+        showToast('success', 'Product Deleted', `${product.name} has been removed from inventory.`);
+        loadProducts();
+        loadDashboard();
+    }
+}
+
+// Categories
+function loadCategories() {
+    const container = document.getElementById('categoriesGrid');
+    
+    container.innerHTML = categories.map(c => `
+        <div class="category-card">
+            <div class="category-icon" style="background: ${c.color};">
+                <i class="fas ${c.icon}"></i>
+            </div>
+            <h3>${c.name}</h3>
+            <p>Manage ${c.name.toLowerCase()} products and inventory</p>
+            <div class="category-meta">
+                <span>${c.count} Products</span>
+                <strong><i class="fas fa-arrow-right"></i></strong>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Inventory
+function loadInventory() {
+    // Update inventory stats
+    const inStock = products.filter(p => p.status === 'in-stock').length;
+    const lowStock = products.filter(p => p.status === 'low-stock').length;
+    const outOfStock = products.filter(p => p.status === 'out-of-stock').length;
+
+    document.getElementById('inStockCount').textContent = inStock;
+    document.getElementById('lowStockCount').textContent = lowStock;
+    document.getElementById('outOfStockCount').textContent = outOfStock;
+
+    // Load inventory table
+    const tbody = document.querySelector('#inventoryTable tbody');
+    
+    tbody.innerHTML = products.map(p => `
+        <tr>
+            <td>
+                <div class="product-info">
+                    <div class="product-img">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div>
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-sku">${p.sku}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${p.sku}</td>
+            <td>${p.stock}</td>
+            <td>${p.minStock}</td>
+            <td>${p.minStock * 3}</td>
+            <td><span class="status-badge ${p.status}">${formatStatus(p.status)}</span></td>
+            <td>${new Date().toLocaleDateString()}</td>
+            <td>
+                <div class="action-btns">
+                    <button class="action-btn edit" title="Adjust Stock" onclick="adjustStock(${p.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function adjustStock(id) {
+    const product = products.find(p => p.id === id);
+    if (product) {
+        modalTitle.textContent = 'Adjust Stock';
+        modalBody.innerHTML = `
+            <form id="stockForm">
+                <div class="form-group">
+                    <label>Product</label>
+                    <input type="text" value="${product.name}" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Current Stock</label>
+                    <input type="text" value="${product.stock}" disabled>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Adjustment Type</label>
+                        <select id="adjustmentType">
+                            <option value="add">Add Stock</option>
+                            <option value="remove">Remove Stock</option>
+                            <option value="set">Set Stock</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="adjustmentQty" value="0" min="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Reason</label>
+                    <select id="adjustmentReason">
+                        <option value="purchase">Purchase Order</option>
+                        <option value="sale">Sale</option>
+                        <option value="return">Customer Return</option>
+                        <option value="damage">Damaged/Defective</option>
+                        <option value="adjustment">General Adjustment</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Adjustment
+                    </button>
+                </div>
+            </form>
+        `;
+
+        openModal();
+
+        document.getElementById('stockForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const type = document.getElementById('adjustmentType').value;
+            const qty = parseInt(document.getElementById('adjustmentQty').value);
+            
+            if (type === 'add') {
+                product.stock += qty;
+            } else if (type === 'remove') {
+                product.stock = Math.max(0, product.stock - qty);
+            } else {
+                product.stock = qty;
+            }
+
+            // Update status
+            if (product.stock === 0) {
+                product.status = 'out-of-stock';
+            } else if (product.stock < product.minStock) {
+                product.status = 'low-stock';
+            } else {
+                product.status = 'in-stock';
+            }
+
+            closeModal();
+            loadInventory();
+            loadProducts();
+            loadDashboard();
+            showToast('success', 'Stock Adjusted', `${product.name} stock has been updated.`);
+        });
+    }
+}
+
+// Suppliers
+function loadSuppliers() {
+    const tbody = document.querySelector('#suppliersTable tbody');
+    
+    tbody.innerHTML = suppliers.map(s => `
+        <tr>
+            <td>
+                <div class="product-info">
+                    <div class="product-img">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div>
+                        <div class="product-name">${s.name}</div>
+                        <div class="product-sku">ID: ${s.id}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${s.contact}</td>
+            <td>${s.email}</td>
+            <td>${s.phone}</td>
+            <td>${s.products}</td>
+            <td><span class="status-badge ${s.status}">${formatStatus(s.status)}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="action-btn edit" title="Edit" onclick="editSupplier(${s.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn delete" title="Delete" onclick="deleteSupplier(${s.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+
+    document.getElementById('addSupplierBtn').addEventListener('click', showSupplierModal);
+}
+
+function showSupplierModal(supplier = null) {
+    modalTitle.textContent = supplier ? 'Edit Supplier' : 'Add Supplier';
+    
+    modalBody.innerHTML = `
+        <form id="supplierForm">
+            <div class="form-group">
+                <label>Supplier Name</label>
+                <input type="text" id="supplierName" value="${supplier ? supplier.name : ''}" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Contact Person</label>
+                    <input type="text" id="supplierContact" value="${supplier ? supplier.contact : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="supplierEmail" value="${supplier ? supplier.email : ''}" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="supplierPhone" value="${supplier ? supplier.phone : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="supplierStatus">
+                        <option value="active" ${supplier && supplier.status === 'active' ? 'selected' : ''}>Active</option>
+                        <option value="inactive" ${supplier && supplier.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> ${supplier ? 'Update Supplier' : 'Add Supplier'}
+                </button>
+            </div>
+        </form>
+    `;
+
+    openModal();
+
+    document.getElementById('supplierForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveSupplier(supplier ? supplier.id : null);
+    });
+}
+
+function saveSupplier(supplierId) {
+    const supplierData = {
+        name: document.getElementById('supplierName').value,
+        contact: document.getElementById('supplierContact').value,
+        email: document.getElementById('supplierEmail').value,
+        phone: document.getElementById('supplierPhone').value,
+        status: document.getElementById('supplierStatus').value
+    };
+
+    if (supplierId) {
+        const index = suppliers.findIndex(s => s.id === supplierId);
+        if (index !== -1) {
+            suppliers[index] = { ...suppliers[index], ...supplierData };
+            showToast('success', 'Supplier Updated', `${supplierData.name} has been updated.`);
+        }
+    } else {
+        supplierData.id = Math.max(...suppliers.map(s => s.id)) + 1;
+        supplierData.products = 0;
+        suppliers.push(supplierData);
+        showToast('success', 'Supplier Added', `${supplierData.name} has been added.`);
+    }
+
+    closeModal();
+    loadSuppliers();
+}
+
+function editSupplier(id) {
+    const supplier = suppliers.find(s => s.id === id);
+    if (supplier) {
+        showSupplierModal(supplier);
+    }
+}
+
+function deleteSupplier(id) {
+    const supplier = suppliers.find(s => s.id === id);
+    if (supplier && confirm(`Are you sure you want to delete "${supplier.name}"?`)) {
+        suppliers = suppliers.filter(s => s.id !== id);
+        showToast('success', 'Supplier Deleted', `${supplier.name} has been removed.`);
+        loadSuppliers();
+    }
+}
+
+// Charts
+function initializeCharts() {
+    // Inventory Overview Chart
+    const inventoryCtx = document.getElementById('inventoryChart');
+    if (inventoryCtx) {
+        new Chart(inventoryCtx, {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Stock In',
+                    data: [65, 78, 90, 81, 95, 110, 105],
+                    borderColor: '#43e97b',
+                    backgroundColor: 'rgba(67, 233, 123, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Stock Out',
+                    data: [45, 55, 60, 70, 65, 80, 75],
+                    borderColor: '#f5576c',
+                    backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Category Chart
+    const categoryCtx = document.getElementById('categoryChart');
+    if (categoryCtx) {
+        new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categories.map(c => c.name),
+                datasets: [{
+                    data: categories.map(c => c.count),
+                    backgroundColor: [
+                        '#667eea',
+                        '#764ba2',
+                        '#4facfe',
+                        '#43e97b',
+                        '#f5576c',
+                        '#fa709a'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Modal Functions
+function openModal() {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Toast Notifications
+function showToast(type, title, message) {
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-times-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <i class="fas ${icons[type]}"></i>
+        <div class="toast-message">
+            <strong>${title}</strong>
+            <p>${message}</p>
+        </div>
+    `;
+
+    toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'toastSlide 0.3s ease reverse';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+// Search functionality
+document.getElementById('productSearch')?.addEventListener('input', function() {
+    const query = this.value.toLowerCase();
+    const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        p.sku.toLowerCase().includes(query) ||
+        p.category.toLowerCase().includes(query)
+    );
+    
+    const tbody = document.querySelector('#productsTable tbody');
+    tbody.innerHTML = filtered.slice(0, 10).map(p => `
+        <tr>
+            <td><input type="checkbox"></td>
+            <td>
+                <div class="product-info">
+                    <div class="product-img">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div>
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-sku">${p.sku}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${p.sku}</td>
+            <td>${p.category}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td><span class="status-badge ${p.status}">${formatStatus(p.status)}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="action-btn edit" title="Edit" onclick="editProduct(${p.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn delete" title="Delete" onclick="deleteProduct(${p.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+});
+
+// Settings navigation
+document.querySelectorAll('.settings-nav-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
+        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+        
+        item.classList.add('active');
+        const panelId = item.dataset.settings + 'Settings';
+        document.getElementById(panelId)?.classList.add('active');
+    });
+});
+
+// Filter functionality
+document.getElementById('categoryFilter')?.addEventListener('change', function() {
+    const category = this.value;
+    const filtered = category ? products.filter(p => p.category === category) : products;
+    
+    const tbody = document.querySelector('#productsTable tbody');
+    tbody.innerHTML = filtered.slice(0, 10).map(p => `
+        <tr>
+            <td><input type="checkbox"></td>
+            <td>
+                <div class="product-info">
+                    <div class="product-img">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div>
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-sku">${p.sku}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${p.sku}</td>
+            <td>${p.category}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td><span class="status-badge ${p.status}">${formatStatus(p.status)}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="action-btn edit" title="Edit" onclick="editProduct(${p.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn delete" title="Delete" onclick="deleteProduct(${p.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+});
+
+document.getElementById('stockFilter')?.addEventListener('change', function() {
+    const status = this.value;
+    const filtered = status ? products.filter(p => p.status === status) : products;
+    
+    const tbody = document.querySelector('#productsTable tbody');
+    tbody.innerHTML = filtered.slice(0, 10).map(p => `
+        <tr>
+            <td><input type="checkbox"></td>
+            <td>
+                <div class="product-info">
+                    <div class="product-img">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div>
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-sku">${p.sku}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${p.sku}</td>
+            <td>${p.category}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td><span class="status-badge ${p.status}">${formatStatus(p.status)}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="action-btn edit" title="Edit" onclick="editProduct(${p.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn delete" title="Delete" onclick="deleteProduct(${p.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+});
+
+// Logout functionality
+document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showToast('info', 'Logged Out', 'You have been logged out successfully.');
+});
+

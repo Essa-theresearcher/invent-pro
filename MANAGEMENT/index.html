@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-boxes-stacked"></i>
+            <span>Inventory Pro</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-section="dashboard">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-section="products">
+                <i class="fas fa-box"></i>
+                <span>Products</span>
+            </a>
+            <a href="#" class="nav-item" data-section="categories">
+                <i class="fas fa-tags"></i>
+                <span>Categories</span>
+            </a>
+            <a href="#" class="nav-item" data-section="inventory">
+                <i class="fas fa-warehouse"></i>
+                <span>Inventory</span>
+            </a>
+            <a href="#" class="nav-item" data-section="suppliers">
+                <i class="fas fa-truck"></i>
+                <span>Suppliers</span>
+            </a>
+            <a href="#" class="nav-item" data-section="users">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="#" class="nav-item" data-section="reports">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+            <a href="#" class="nav-item" data-section="settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="#" class="nav-item" id="logoutBtn" onclick="logout(); return false;">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <button class="menu-toggle" id="menuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="header-search">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search products, categories...">
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge">3</span>
+                </button>
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=Admin+User&background=667eea&color=fff" alt="User">
+                    <span>Admin User</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </header>
+
+        <section class="content-section active" id="dashboard">
+            <div class="section-header">
+                <h1>Dashboard</h1>
+                <p>Welcome back! Here's what's happening with your inventory.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Total Products</h3>
+                        <p class="stat-number" id="totalProducts">10</p>
+                        <span class="stat-change positive"><i class="fas fa-arrow-up"></i> 12% this month</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Categories</h3>
+                        <p class="stat-number" id="totalCategories">6</p>
+                        <span class="stat-change positive"><i class="fas fa-arrow-up"></i> 3 new</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <i class="fas fa-warehouse"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Total Stock</h3>
+                        <p class="stat-number" id="totalStock">380</p>
+                        <span class="stat-change neutral"><i class="fas fa-minus"></i> No change</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Total Value</h3>
+                        <p class="stat-number" id="totalValue">$32,450</p>
+                        <span class="stat-change positive"><i class="fas fa-arrow-up"></i> 8% this month</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="card-header">
+                        <h3>Inventory Overview</h3>
+                        <select class="chart-filter">
+                            <option>Last 7 days</option>
+                            <option>Last 30 days</option>
+                            <option>Last 90 days</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="inventoryChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="card-header">
+                        <h3>Stock by Category</h3>
+                        <button class="btn-sm">View All</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="activity-grid">
+                <div class="activity-card">
+                    <div class="card-header">
+                        <h3>Recent Activity</h3>
+                        <a href="#" class="view-all">View All</a>
+                    </div>
+                    <div class="activity-list" id="recentActivity"></div>
+                </div>
+                <div class="activity-card">
+                    <div class="card-header">
+                        <h3>Low Stock Alerts</h3>
+                        <a href="#" class="view-all">View All</a>
+                    </div>
+                    <div class="low-stock-list" id="lowStockAlerts"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section" id="products">
+            <div class="section-header">
+                <h1>Products</h1>
+                <p>Manage your product inventory</p>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search products..." id="productSearch">
+                        </div>
+                        <select class="filter-select" id="categoryFilter">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select class="filter-select" id="stockFilter">
+                            <option value="">All Stock Status</option>
+                            <option value="in-stock">In Stock</option>
+                            <option value="low-stock">Low Stock</option>
+                            <option value="out-of-stock">Out of Stock</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="addProductBtn">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
+                </div>
+                <table class="data-table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAll"></th>
+                            <th>Product Name</th>
+                            <th>SKU</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section" id="categories">
+            <div class="section-header">
+                <h1>Categories</h1>
+                <p>Organize your products into categories</p>
+            </div>
+            
+            <div class="table-container" style="margin-bottom: 24px;">
+                <div class="table-header">
+                    <h3>Category Management</h3>
+                    <button class="btn btn-primary" id="addCategoryBtn">
+                        <i class="fas fa-plus"></i> Add Category
+                    </button>
+                </div>
+            </div>
+            
+            <div class="categories-grid" id="categoriesGrid"></div>
+        </section>
+
+        <section class="content-section" id="inventory">
+            <div class="section-header">
+                <h1>Inventory</h1>
+                <p>Track and manage stock levels</p>
+            </div>
+
+            <div class="inventory-stats">
+                <div class="inventory-stat-card">
+                    <i class="fas fa-check-circle" style="color: #43e97b;"></i>
+                    <div>
+                        <h4>In Stock</h4>
+                        <p id="inStockCount">7</p>
+                    </div>
+                </div>
+                <div class="inventory-stat-card">
+                    <i class="fas fa-exclamation-triangle" style="color: #f5576c;"></i>
+                    <div>
+                        <h4>Low Stock</h4>
+                        <p id="lowStockCount">2</p>
+                    </div>
+                </div>
+                <div class="inventory-stat-card">
+                    <i class="fas fa-times-circle" style="color: #ff6b6b;"></i>
+                    <div>
+                        <h4>Out of Stock</h4>
+                        <p id="outOfStockCount">1</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search inventory..." id="inventorySearch">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="adjustStockBtn">
+                        <i class="fas fa-edit"></i> Adjust Stock
+                    </button>
+                </div>
+                <table class="data-table" id="inventoryTable">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th>Current Stock</th>
+                            <th>Min Stock</th>
+                            <th>Max Stock</th>
+                            <th>Status</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section" id="suppliers">
+            <div class="section-header">
+                <h1>Suppliers</h1>
+                <p>Manage your product suppliers</p>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search suppliers..." id="supplierSearch">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="addSupplierBtn">
+                        <i class="fas fa-plus"></i> Add Supplier
+                    </button>
+                </div>
+                <table class="data-table" id="suppliersTable">
+                    <thead>
+                        <tr>
+                            <th>Supplier Name</th>
+                            <th>Contact Person</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Products</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section" id="users">
+            <div class="section-header">
+                <h1>Users</h1>
+                <p>Manage system users and their roles</p>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search users..." id="userSearch">
+                        </div>
+                        <select class="filter-select" id="userRoleFilter">
+                            <option value="">All Roles</option>
+                            <option value="OWNER">Owner</option>
+                            <option value="MANAGER">Manager</option>
+                            <option value="CASHIER">Cashier</option>
+                        </select>
+                        <select class="filter-select" id="userStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="addUserBtn">
+                        <i class="fas fa-plus"></i> Add User
+                    </button>
+                </div>
+                <table class="data-table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllUsers"></th>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Phone</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section" id="reports">
+            <div class="section-header">
+                <h1>Reports</h1>
+                <p>View and analyze your inventory data</p>
+            </div>
+
+            <div class="reports-grid">
+                <div class="report-card">
+                    <div class="report-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <h3>Inventory Summary</h3>
+                    <p>Complete overview of current stock levels and values</p>
+                    <button class="btn btn-outline">Generate Report</button>
+                </div>
+                <div class="report-card">
+                    <div class="report-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Stock Movement</h3>
+                    <p>Track stock changes over time</p>
+                    <button class="btn btn-outline">Generate Report</button>
+                </div>
+                <div class="report-card">
+                    <div class="report-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3>Low Stock Report</h3>
+                    <p>Products below minimum stock levels</p>
+                    <button class="btn btn-outline">Generate Report</button>
+                </div>
+                <div class="report-card">
+                    <div class="report-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <h3>Supplier Performance</h3>
+                    <p>Analyze supplier reliability and delivery times</p>
+                    <button class="btn btn-outline">Generate Report</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section" id="settings">
+            <div class="section-header">
+                <h1>Settings</h1>
+                <p>Configure your inventory management system</p>
+            </div>
+
+            <div class="settings-container">
+                <div class="settings-nav">
+                    <a href="#" class="settings-nav-item active" data-settings="general">
+                        <i class="fas fa-cog"></i> General
+                    </a>
+                    <a href="#" class="settings-nav-item" data-settings="notifications">
+                        <i class="fas fa-bell"></i> Notifications
+                    </a>
+                    <a href="#" class="settings-nav-item" data-settings="integrations">
+                        <i class="fas fa-plug"></i> Integrations
+                    </a>
+                </div>
+                <div class="settings-content">
+                    <div class="settings-panel active" id="generalSettings">
+                        <h2>General Settings</h2>
+                        <form class="settings-form">
+                            <div class="form-group">
+                                <label>Company Name</label>
+                                <input type="text" value="Inventory Pro Inc.">
+                            </div>
+                            <div class="form-group">
+                                <label>Currency</label>
+                                <select>
+                                    <option>USD ($)</option>
+                                    <option>EUR (€)</option>
+                                    <option>GBP (£)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Low Stock Threshold</label>
+                                <input type="number" value="10">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal" id="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Product</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+

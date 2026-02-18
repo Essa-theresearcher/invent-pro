@@ -1,0 +1,335 @@
+// This is your Prisma schema file
+// Learn more at: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Organization model
+model Org {
+  id          String     @id @default(uuid())
+  name        String
+  email       String     @unique
+  phone       String?
+  address     String?
+  taxId       String?    @map("tax_id")
+  currency    String     @default("USD")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  users       User[]
+  locations   Location[]
+  products    Product[]
+  categories  Category[]
+  transfers   Transfer[]
+  sales       Sale[]
+  auditLogs   AuditLog[]
+
+  @@map("orgs")
+}
+
+// User roles enum
+enum Role {
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+// User model
+model User {
+  id          String     @id @default(uuid())
+  email       String     @unique
+  password    String
+  firstName   String     @map("first_name")
+  lastName    String     @map("last_name")
+  phone       String?
+  role        Role       @default(CASHIER)
+  isActive    Boolean    @default(true) @map("is_active")
+  orgId       String     @map("org_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  org         Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userLocations UserLocation[]
+  sales       Sale[]
+  auditLogs   AuditLog[]
+
+  @@map("users")
+}
+
+// Location types enum
+enum LocationType {
+  WAREHOUSE
+  BRANCH
+}
+
+// Location model
+model Location {
+  id          String        @id @default(uuid())
+  name        String
+  type        LocationType  @default(BRANCH)
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean       @default(true) @map("is_active")
+  orgId       String        @map("org_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  org         Org           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userLocations UserLocation[]
+  stockBalances StockBalance[]
+  inventoryMovements InventoryMovement[]
+  transfersOut Transfer[]   @relation("TransferOut")
+  transfersIn  Transfer[]   @relation("TransferIn")
+  sales        Sale[]
+
+  @@map("locations")
+}
+
+// Junction table for user-location assignments
+model UserLocation {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  locationId  String     @map("location_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location    Location   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, locationId])
+  @@map("user_locations")
+}
+
+// Product category - stored as table for dynamic management
+model Category {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  isActive    Boolean    @default(true) @map("is_active")
+  orgId       String     @map("org_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  org         Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@map("categories")
+}
+
+// Product model
+model Product {
+  id          String     @id @default(uuid())
+  sku         String     @unique
+  name        String
+  description String?
+  categoryId  String?    @map("category_id")
+  barcode     String?    @unique
+  unitPrice   Decimal    @map("unit_price") @db.Decimal(10, 2)
+  costPrice   Decimal    @map("cost_price") @db.Decimal(10, 2)
+  imageUrl    String?    @map("image_url")
+  isActive    Boolean    @default(true) @map("is_active")
+  orgId       String     @map("org_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  org         Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  stockBalances StockBalance[]
+  inventoryMovements InventoryMovement[]
+  transferItems TransferItem[]
+  saleItems    SaleItem[]
+
+  @@map("products")
+}
+
+// Stock balance cache per product per location
+model StockBalance {
+  id          String     @id @default(uuid())
+  productId   String     @map("product_id")
+  locationId  String     @map("location_id")
+  quantity    Int        @default(0)
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  product     Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location    Location   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locationId])
+  @@map("stock_balances")
+}
+
+// Movement types enum
+enum MovementType {
+  PURCHASE_IN
+  SALE_OUT
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RETURN_IN
+}
+
+// Inventory movement ledger (immutable)
+model InventoryMovement {
+  id            String        @id @default(uuid())
+  productId     String        @map("product_id")
+  locationId    String        @map("location_id")
+  type          MovementType
+  quantity      Int
+  referenceId   String?       @map("reference_id")
+  referenceType String?       @map("reference_type")
+  reason        String?
+  previousQty   Int            @map("previous_qty")
+  newQty        Int            @map("new_qty")
+  unitCost      Decimal        @map("unit_cost") @db.Decimal(10, 2)
+  documentUrl   String?        @map("document_url")
+  createdBy     String         @map("created_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  location      Location       @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@map("inventory_movements")
+}
+
+// Transfer status enum
+enum TransferStatus {
+  PENDING
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+// Transfer model (atomic: transfer_out + transfer_in)
+model Transfer {
+  id              String          @id @default(uuid())
+  referenceNumber String          @unique @map("reference_number")
+  fromLocationId  String          @map("from_location_id")
+  toLocationId    String          @map("to_location_id")
+  status          TransferStatus  @default(PENDING)
+  notes           String?
+  reason          String?
+  createdBy       String          @map("created_by")
+  orgId           String          @map("org_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  org             Org             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  fromLocation    Location        @relation("TransferOut", fields: [fromLocationId], references: [id])
+  toLocation      Location        @relation("TransferIn", fields: [toLocationId], references: [id])
+  items           TransferItem[]
+
+  @@map("transfers")
+}
+
+// Transfer items
+model TransferItem {
+  id          String   @id @default(uuid())
+  transferId  String   @map("transfer_id")
+  productId   String   @map("product_id")
+  quantity    Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  transfer    Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@map("transfer_items")
+}
+
+// Sale status enum
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  VOIDED
+  REFUNDED
+}
+
+// Sale model
+model Sale {
+  id              String      @id @default(uuid())
+  receiptNumber   String      @unique @map("receipt_number")
+  locationId      String      @map("location_id")
+  customerId      String?     @map("customer_id")
+  cashierId       String      @map("cashier_id")
+  subtotal        Decimal     @db.Decimal(10, 2)
+  taxAmount       Decimal     @map("tax_amount") @db.Decimal(10, 2)
+  discountAmount  Decimal     @map("discount_amount") @db.Decimal(10, 2)
+  totalAmount     Decimal     @map("total_amount") @db.Decimal(10, 2)
+  paymentMethod   String      @map("payment_method")
+  status          SaleStatus  @default(PENDING)
+  notes           String?
+  voidReason      String?     @map("void_reason")
+  refundedAt      DateTime?   @map("refunded_at")
+  orgId           String      @map("org_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  org             Org         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  location        Location    @relation(fields: [locationId], references: [id])
+  cashier         User        @relation(fields: [cashierId], references: [id])
+  items           SaleItem[]
+
+  @@map("sales")
+}
+
+// Sale items
+model SaleItem {
+  id              String   @id @default(uuid())
+  saleId          String   @map("sale_id")
+  productId       String   @map("product_id")
+  quantity        Int
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(10, 2)
+  costPrice       Decimal  @map("cost_price") @db.Decimal(10, 2)
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(10, 2)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(10, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  sale            Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@map("sale_items")
+}
+
+// Audit log actions
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  LOGIN
+  LOGOUT
+  TRANSFER
+  VOID
+  REFUND
+  ADJUST
+  PRINT
+}
+
+// Audit log for fraud controls
+model AuditLog {
+  id          String       @id @default(uuid())
+  action      AuditAction
+  entityType  String       @map("entity_type")
+  entityId    String       @map("entity_id")
+  userId      String?      @map("user_id")
+  oldValue    Json?        @map("old_value")
+  newValue    Json?        @map("new_value")
+  ipAddress   String?      @map("ip_address")
+  userAgent   String?      @map("user_agent")
+  reason      String?
+  orgId       String       @map("org_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  org         Org          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
