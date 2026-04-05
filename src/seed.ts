@@ -19,19 +19,26 @@ export async function seedAdminUser(app: INestApplication): Promise<void> {
   const logger = new Logger('Seed');
 
   const userRepository = app.get<Repository<User>>(getRepositoryToken(User));
-  const usersCount = await userRepository.count();
+  const adminEmail = 'admin@admin.com';
+  const hashedPassword = await bcrypt.hash('Admin@1234', 10);
 
-  if (usersCount > 0) {
-    logger.log('Admin user already exists, skipping seed');
+  const existingAdmin = await userRepository.findOne({
+    where: { email: adminEmail },
+  });
+
+  if (existingAdmin) {
+    await userRepository.update(
+      { email: adminEmail },
+      { password: hashedPassword },
+    );
+    logger.log('Admin user password force-updated successfully');
     return;
   }
-
-  const hashedPassword = await bcrypt.hash('Admin@1234', 10);
 
   const adminUserData: UserSeedPayload = {
     firstName: 'Admin',
     lastName: 'User',
-    email: 'admin@admin.com',
+    email: adminEmail,
     password: hashedPassword,
     role: Role.OWNER,
     isActive: true,
