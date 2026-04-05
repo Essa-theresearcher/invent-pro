@@ -271,40 +271,14 @@ export class ProductsService {
     search?: string;
     category?: string;
   }): Promise<any[]> {
-    const query = this.productsRepository.createQueryBuilder('product')
-      .leftJoinAndSelect(
-        'stock_balances',
-        'sb',
-        'sb.productId = product.id AND sb.locationId = :locationId',
-        { locationId }
-      )
-      .select([
-        'product.id',
-        'product.name',
-        'product.sku',
-        'product.category',
-        'product.unitPrice',
-        'product.baseUnitType',
-        'product.baseUnitName',
-        'product.pricePerBaseUnit',
-        'product.priceHalfUnit',
-        'product.priceQuarterUnit',
-        'product.priceThreeQuarterUnit',
-        'product.retailPrice',
-        'product.wholesalePrice',
-        'product.stock',
-        'product.minStock',
-        'product.status',
-        'product.isActive',
-      ])
-      .addSelect('COALESCE(sb.quantity, 0)', 'stockQuantity');
+    const query = this.productsRepository.createQueryBuilder('product');
 
-    // Include all active products for the selected location context,
-    // even if no stock_balances row exists yet (stockQuantity will be 0)
+    // Only show active products
+    query.where('product.isActive = :isActive', { isActive: true });
 
     if (filters?.search) {
       query.andWhere(
-        '(product.name LIKE :search OR product.sku LIKE :search OR product.barcode LIKE :search)',
+        '(product.name LIKE :search OR product.sku LIKE :search)',
         { search: `%${filters.search}%` }
       );
     }
@@ -313,36 +287,36 @@ export class ProductsService {
       query.andWhere('product.category = :category', { category: filters.category });
     }
 
-    // Only show active products
-    query.andWhere('product.isActive = :isActive', { isActive: true });
-
     query.orderBy('product.name', 'ASC');
 
-    const products = await query.getRawMany();
+    const products = await query.getMany();
 
-    // Format the results - handle SQLite boolean (0/1) and string comparisons
-    // Note: TypeORM getRawMany uses underscore naming for columns
-    // The isActive filter is applied in the query, so products returned are active
-    return products.map(p => ({
-      id: p.product_id,
-      name: p.product_name,
-      sku: p.product_sku,
-      category: p.product_category,
-      unitPrice: parseFloat(p.product_unit_price) || 0,
-      baseUnitType: p.product_base_unit_type || 'PIECE',
-      baseUnitName: p.product_base_unit_name || 'piece',
-      pricePerBaseUnit: p.product_price_per_base_unit != null ? parseFloat(p.product_price_per_base_unit) : (parseFloat(p.product_unit_price) || 0),
-      priceHalfUnit: p.product_price_half_unit != null ? parseFloat(p.product_price_half_unit) : null,
-      priceQuarterUnit: p.product_price_quarter_unit != null ? parseFloat(p.product_price_quarter_unit) : null,
-      priceThreeQuarterUnit: p.product_price_three_quarter_unit != null ? parseFloat(p.product_price_three_quarter_unit) : null,
-      retailPrice: p.product_retail_price != null ? parseFloat(p.product_retail_price) : (parseFloat(p.product_unit_price) || 0),
-      wholesalePrice: p.product_wholesale_price != null ? parseFloat(p.product_wholesale_price) : null,
-      stock: parseFloat(p.product_stock) || 0,
-      minStock: parseFloat(p.product_min_stock) || 0,
-      status: p.product_status,
-      // Default true because query filters active products
-      isActive: true,
-      stockQuantity: parseFloat(p.stockQuantity) || 0,
+    const balances = await this.stockBalanceRepository.find({
+      where: { locationId },
+    });
+    const balanceMap = new Map<string, number>(
+      balances.map((b) => [String(b.productId), Number(b.quantity || 0)])
+    );
+
+    return products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      category: p.category,
+      unitPrice: Number(p.unitPrice || 0),
+      baseUnitType: p.baseUnitType || 'PIECE',
+      baseUnitName: p.baseUnitName || 'piece',
+      pricePerBaseUnit: p.pricePerBaseUnit != null ? Number(p.pricePerBaseUnit) : Number(p.unitPrice || 0),
+      priceHalfUnit: p.priceHalfUnit != null ? Number(p.priceHalfUnit) : null,
+      priceQuarterUnit: p.priceQuarterUnit != null ? Number(p.priceQuarterUnit) : null,
+      priceThreeQuarterUnit: p.priceThreeQuarterUnit != null ? Number(p.priceThreeQuarterUnit) : null,
+      retailPrice: p.retailPrice != null ? Number(p.retailPrice) : Number(p.unitPrice || 0),
+      wholesalePrice: p.wholesalePrice != null ? Number(p.wholesalePrice) : null,
+      stock: Number(p.stock || 0),
+      minStock: Number(p.minStock || 0),
+      status: p.status,
+      isActive: p.isActive !== false,
+      stockQuantity: balanceMap.get(String(p.id)) ?? 0,
     }));
   }
 
