@@ -291,7 +291,7 @@ async function loadUsers() {
         const data = await apiJson('/users');
         const list = Array.isArray(data) ? data : [];
         users = selectedLocationId
-            ? list.filter(u => u.assignedLocationId === selectedLocationId)
+            ? list.filter(u => (u.assignedLocationId || u.assigned_location_id) === selectedLocationId)
             : list;
         
         // Load locations for assignment feature
@@ -1721,7 +1721,7 @@ function renderUsers() {
             <td>${u.email}</td>
             <td><span class="status-badge ${getRoleClass(u.role)}">${formatRole(u.role)}</span></td>
             <td>${u.phone || '-'}</td>
-            <td>${u.assignedLocationId ? (locationMap[u.assignedLocationId] || 'Unknown') : '-'}</td>
+            <td>${(u.assignedLocationId || u.assigned_location_id) ? (locationMap[u.assignedLocationId || u.assigned_location_id] || 'Unknown') : '-'}</td>
             <td><span class="status-badge ${u.isActive ? 'active' : 'inactive'}">${u.isActive ? 'Active' : 'Inactive'}</span></td>
             <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}</td>
             <td>
@@ -1776,7 +1776,7 @@ function showUserModal(user = null) {
     // Get locations for dropdown
     const locations = window.allLocations || [];
     const locationOptions = locations.map(loc => 
-        `<option value="${loc.id}" ${user && user.assignedLocationId === loc.id ? 'selected' : ''}>${loc.name}</option>`
+        `<option value="${loc.id}" ${user && (user.assignedLocationId || user.assigned_location_id) === loc.id ? 'selected' : ''}>${loc.name}</option>`
     ).join('');
     
     modalBody.innerHTML = `
