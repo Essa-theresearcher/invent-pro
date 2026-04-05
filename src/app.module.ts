@@ -44,11 +44,11 @@ import { StockRequest } from './sales/entities/stock-request.entity';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: process.env.DB_HOST,
-        port: parseInt(process.env.DB_PORT || '5432', 10) || 5432,
-        username: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
+        host: process.env.DB_HOST || 'inventory-management-sysy-database-icxelq',
+        port: parseInt(process.env.DB_PORT || '5432', 10),
+        username: process.env.DB_USER || 'inshore',
+        password: process.env.DB_PASSWORD || 'Rabbanimalikah@99',
+        database: process.env.DB_NAME || 'inventory-db',
         entities: [
           User,
           UserLocation,
