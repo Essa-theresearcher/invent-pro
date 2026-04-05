@@ -563,9 +563,18 @@ async function createUser(userData) {
             method: 'POST',
             body: JSON.stringify(userData)
         });
-        users.push(result);
+
+        // Normalize assignment key so newly-created user survives immediate filtered reload
+        // and does not briefly appear then disappear in location-scoped view.
+        const normalized = {
+            ...result,
+            assignedLocationId: result?.assignedLocationId ?? result?.assigned_location_id ?? null,
+            assigned_location_id: result?.assigned_location_id ?? result?.assignedLocationId ?? null,
+        };
+
+        users.push(normalized);
         renderUsers();
-        return result;
+        return normalized;
     } catch (error) {
         throw error;
     }
@@ -1885,6 +1894,13 @@ async function saveUserForm(userId) {
                     method: 'PUT',
                     body: JSON.stringify({ locationId })
                 });
+
+                // Keep local object in sync immediately before reload
+                const idx = users.findIndex(u => u.id === newUserId);
+                if (idx !== -1) {
+                    users[idx].assignedLocationId = locationId;
+                    users[idx].assigned_location_id = locationId;
+                }
             } else if (locationId && !isUuid) {
                 console.warn('Skipping /users/:id/location because returned user id is not UUID:', newUserId);
             }
@@ -1892,8 +1908,8 @@ async function saveUserForm(userId) {
             showToast('success', 'User Added', `${userData.firstName} ${userData.lastName} added.`);
         }
         closeModal();
-        // Refresh users list
-        loadUsers();
+        // Refresh users list and await to avoid race/flicker
+        await loadUsers();
     } catch (error) {
         showToast('error', 'Error', error.message || 'Failed to save user');
     }
