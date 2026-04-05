@@ -63,7 +63,7 @@ export class Sale {
   @Column({ nullable: true, name: 'void_reason' })
   voidReason: string;
 
-  @Column({ nullable: true, name: 'refunded_at', type: 'datetime' })
+  @Column({ nullable: true, name: 'refunded_at', type: 'timestamp' })
   refundedAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })
