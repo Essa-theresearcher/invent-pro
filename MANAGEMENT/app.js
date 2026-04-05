@@ -9,8 +9,8 @@ let suppliers = [];
 let stockRequests = [];
 let requestableProducts = [];
 let masterProducts = [];
-const INSHORE_MAIN_LOCATION_ID = '11fab710-013d-4c98-b494-0f20b7dee1f9';
-const INSHORE_MAIN_LOCATION_NAME = 'Inshore Main';
+const INSHORE_MAIN_LOCATION_ID = '0a71f98e-96a5-4214-9fe9-a09397bf7e87';
+const INSHORE_MAIN_LOCATION_NAME = 'Inshar Main';
 
 let selectedLocationId = localStorage.getItem('selectedLocationId') || '';
 let selectedLocationName = localStorage.getItem('selectedLocationName') || 'All Stores';
