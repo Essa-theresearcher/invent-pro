@@ -9,6 +9,9 @@ let suppliers = [];
 let stockRequests = [];
 let requestableProducts = [];
 let masterProducts = [];
+const INSHORE_MAIN_LOCATION_ID = '11fab710-013d-4c98-b494-0f20b7dee1f9';
+const INSHORE_MAIN_LOCATION_NAME = 'Inshore Main';
+
 let selectedLocationId = localStorage.getItem('selectedLocationId') || '';
 let selectedLocationName = localStorage.getItem('selectedLocationName') || 'All Stores';
 let currentUser = null;
@@ -100,6 +103,16 @@ async function initializeApp() {
         if (managerLocationId && selectedLocationId !== managerLocationId) {
             selectedLocationId = managerLocationId;
             selectedLocationName = currentUser.assignedLocationName || selectedLocationName || 'My Branch';
+            localStorage.setItem('selectedLocationId', selectedLocationId);
+            localStorage.setItem('selectedLocationName', selectedLocationName);
+        }
+    }
+
+    // Enforce owner default scope at startup: Inshore Main
+    if (currentUser?.role === 'OWNER') {
+        if (selectedLocationId !== INSHORE_MAIN_LOCATION_ID) {
+            selectedLocationId = INSHORE_MAIN_LOCATION_ID;
+            selectedLocationName = INSHORE_MAIN_LOCATION_NAME;
             localStorage.setItem('selectedLocationId', selectedLocationId);
             localStorage.setItem('selectedLocationName', selectedLocationName);
         }

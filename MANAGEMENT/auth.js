@@ -255,6 +255,9 @@ async function ensureAuth() {
 // Role-based Redirect Logic
 // ============================================
 
+const INSHORE_MAIN_LOCATION_ID = '11fab710-013d-4c98-b494-0f20b7dee1f9';
+const INSHORE_MAIN_LOCATION_NAME = 'Inshore Main';
+
 /**
  * Handle post-login redirect based on user role
  */
@@ -270,7 +273,11 @@ function handleRoleRedirect() {
     // Cashier goes to POS
     window.location.href = '/pos.html';
   } else {
-    // Admin users go to dashboard
+    // Owner/Admin go to dashboard
+    if (user.role === 'OWNER') {
+      localStorage.setItem('selectedLocationId', INSHORE_MAIN_LOCATION_ID);
+      localStorage.setItem('selectedLocationName', INSHORE_MAIN_LOCATION_NAME);
+    }
     window.location.href = '/index.html';
   }
 }
