@@ -3,7 +3,10 @@
  * Handles token storage, API calls with auth, and user session management
  */
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : window.location.origin;
+const API_BASE_URL = `${API_BASE}/api/v1`;
 
 // ============================================
 // Token Storage

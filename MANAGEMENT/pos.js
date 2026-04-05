@@ -830,7 +830,7 @@ function printReceipt() {
     }
     
     // Open print window with token
-    const printWindow = window.open(`/api/v1/sales/${currentSaleReceipt.id}/receipt?token=${token}`, '_blank');
+    const printWindow = window.open(`${API_BASE}/api/v1/sales/${currentSaleReceipt.id}/receipt?token=${token}`, '_blank');
     
     if (!printWindow) {
         showToast('error', 'Error', 'Popup blocked. Please allow popups for this site.');
