@@ -244,6 +244,7 @@ async function loadProducts() {
         const role = currentUser?.role || UserSession.getRole();
         let endpoint = '/products';
 
+        // Manager is always location-scoped
         if (role === 'MANAGER') {
             const managerLocationId = currentUser?.assigned_location_id || currentUser?.assignedLocationId || selectedLocationId || '';
             if (managerLocationId) {
@@ -252,11 +253,24 @@ async function loadProducts() {
                 endpoint = `/products/location/${managerLocationId}`;
             }
         } else if (selectedLocationId) {
+            // Owner: if a specific store is selected, show location-scoped inventory
             endpoint = `/products/location/${selectedLocationId}`;
+        } else {
+            // Owner + "All Stores": use global catalog endpoint so every active product is visible
+            endpoint = '/products';
         }
 
         const data = await apiJson(endpoint);
         products = Array.isArray(data) ? data : [];
+
+        // Ensure numeric stock fields are normalized for rendering consistency
+        products = products.map((p) => ({
+            ...p,
+            stock: Number(p?.stock ?? 0),
+            stockQuantity: p?.stockQuantity != null ? Number(p.stockQuantity) : undefined,
+            minStock: Number(p?.minStock ?? 0),
+        }));
+
         renderProducts();
         loadDashboard();
         loadInventory();

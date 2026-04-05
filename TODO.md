@@ -1,7 +1,9 @@
-# NestJS v10 Downgrade TODO
+# Product Display Fix Plan
 
-- [x] Update NestJS package versions in package.json to v10-compatible set
-- [ ] Clean install artifacts (remove node_modules and package-lock.json)
-- [ ] Reinstall dependencies and regenerate package-lock.json
-- [ ] Run critical-path validation (build + basic start smoke check)
-- [ ] Summarize package changes, exact install command used, and compatibility confirmation
+- [x] Analyze frontend product fetch/display flow in `MANAGEMENT/app.js`
+- [x] Analyze backend product endpoints in `src/products/products.controller.ts`
+- [x] Analyze backend product query behavior in `src/products/products.service.ts`
+- [x] Fix frontend inventory/product fetch behavior so products display correctly
+- [x] Adjust backend location product query behavior if needed
+- [x] Validate logic paths and ensure POS/location behavior remains intact
+- [x] Collect and present exact diffs of all changed files

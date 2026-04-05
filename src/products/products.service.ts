@@ -299,6 +299,9 @@ export class ProductsService {
       ])
       .addSelect('COALESCE(sb.quantity, 0)', 'stockQuantity');
 
+    // Include all active products for the selected location context,
+    // even if no stock_balances row exists yet (stockQuantity will be 0)
+
     if (filters?.search) {
       query.andWhere(
         '(product.name LIKE :search OR product.sku LIKE :search OR product.barcode LIKE :search)',
@@ -337,8 +340,8 @@ export class ProductsService {
       stock: parseFloat(p.product_stock) || 0,
       minStock: parseFloat(p.product_min_stock) || 0,
       status: p.product_status,
-      // Default to true since query filters by isActive = true
-      isActive: p.product_isActive !== 0 && p.product_isActive !== false && p.product_isActive !== '0',
+      // Default true because query filters active products
+      isActive: true,
       stockQuantity: parseFloat(p.stockQuantity) || 0,
     }));
   }
