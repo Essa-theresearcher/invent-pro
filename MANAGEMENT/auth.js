@@ -200,7 +200,7 @@ async function login(email, password, rememberMe = false) {
 
   // Fetch fresh user data from /users/me to ensure we have the latest
   try {
-    const freshUser = await apiJson('/users/me');
+    const freshUser = await apiJson('/auth/me');
     UserSession.setUser(freshUser, rememberMe);
     return { user: freshUser, token };
   } catch (e) {
@@ -223,7 +223,7 @@ function logout() {
  * @returns {Promise<object>} - User object with role and location_id
  */
 async function fetchCurrentUser() {
-  const user = await apiJson('/users/me');
+  const user = await apiJson('/auth/me');
   UserSession.setUser(user);
   return user;
 }
