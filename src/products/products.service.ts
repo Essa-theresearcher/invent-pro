@@ -298,6 +298,8 @@ export class ProductsService {
       balances.map((b) => [String(b.productId), Number(b.quantity || 0)])
     );
 
+    // If a location-specific balance row does not exist yet, fall back to global product.stock
+    // so existing non-zero stock does not appear as zero in UI.
     return products.map((p) => ({
       id: p.id,
       name: p.name,
@@ -316,7 +318,9 @@ export class ProductsService {
       minStock: Number(p.minStock || 0),
       status: p.status,
       isActive: p.isActive !== false,
-      stockQuantity: balanceMap.get(String(p.id)) ?? 0,
+      stockQuantity: balanceMap.has(String(p.id))
+        ? (balanceMap.get(String(p.id)) ?? 0)
+        : Number(p.stock || 0),
     }));
   }
 
