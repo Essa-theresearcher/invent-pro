@@ -1,9 +1,7 @@
-- [x] Add dashboard metric computation for `recentTransfersReceived` and `pendingStockRequests` in `MANAGEMENT/app.js` using live stock request data
-- [x] Add transfer history renderer for `#transferHistoryTable` from approved stock requests
-- [x] Ensure stock requests are loaded before dashboard render on init and relevant tab switches
-- [ ] Run API/UI validation steps for transfer metric update flow
-- [x] Update receipt branch name rendering to use location name (not location UUID)
-- [x] Verify receipt output for INSHA 6TH STREET and INSHAR 11 TH STREET
-- [ ] Remove stock request UI/actions from cashier POS page
-- [ ] Update POS receipt modal header to use dynamic branch name from current user location
-- [ ] Validate cashier POS flow still works (product load, checkout, receipt print URL)
+# NestJS v10 Downgrade TODO
+
+- [x] Update NestJS package versions in package.json to v10-compatible set
+- [ ] Clean install artifacts (remove node_modules and package-lock.json)
+- [ ] Reinstall dependencies and regenerate package-lock.json
+- [ ] Run critical-path validation (build + basic start smoke check)
+- [ ] Summarize package changes, exact install command used, and compatibility confirmation
