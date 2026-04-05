@@ -27,7 +27,7 @@ export class InventoryMovement {
   })
   type: MovementType;
 
-  @Column()
+  @Column({ type: 'decimal', precision: 12, scale: 3 })
   quantity: number;
 
   @Column({ nullable: true, name: 'reference_id' })
@@ -39,10 +39,10 @@ export class InventoryMovement {
   @Column({ nullable: true })
   reason: string;
 
-  @Column({ name: 'previous_qty' })
+  @Column({ type: 'decimal', precision: 12, scale: 3, name: 'previous_qty' })
   previousQty: number;
 
-  @Column({ name: 'new_qty' })
+  @Column({ type: 'decimal', precision: 12, scale: 3, name: 'new_qty' })
   newQty: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, name: 'unit_cost' })

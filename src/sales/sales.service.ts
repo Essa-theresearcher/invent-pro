@@ -145,6 +145,8 @@ export class SalesService {
         const itemTotal = (unitPrice - discount) * Number(item.quantity);
         const taxAmount = itemTotal * taxRate;
 
+        const safeCostPrice = Number(product.costPrice ?? 0);
+
         saleItemsData.push({
           productId: item.productId,
           quantity: Number(item.quantity),
@@ -152,7 +154,7 @@ export class SalesService {
           baseQtyFactor: Number(baseQtyFactor),
           requiredBaseQty,
           unitPrice,
-          costPrice: Number(product.costPrice),
+          costPrice: Number.isFinite(safeCostPrice) ? safeCostPrice : 0,
           discountAmount: discount,
           taxAmount,
           totalAmount: itemTotal + taxAmount,
@@ -203,7 +205,7 @@ export class SalesService {
         await queryRunner.manager.save(saleItem);
 
         // Update location stock balance
-        const newQty = Number(itemData.stockBalance.quantity) - Number(itemData.requiredBaseQty);
+        const newQty = Number((Number(itemData.stockBalance.quantity) - Number(itemData.requiredBaseQty)).toFixed(3));
         await queryRunner.manager.update(StockBalance, itemData.stockBalance.id, {
           quantity: newQty,
         });
@@ -227,16 +229,20 @@ export class SalesService {
         });
 
         // Create inventory movement (SALE_OUT)
+        const movementQuantity = Number((-Number(itemData.requiredBaseQty)).toFixed(3));
+        const movementPreviousQty = Number(Number(itemData.stockBalance.quantity).toFixed(3));
+        const movementNewQty = Number(Number(newQty).toFixed(3));
+
         const movement = this.movementRepository.create({
           productId: itemData.productId,
           locationId,
           type: MovementType.SALE_OUT,
-          quantity: -Number(itemData.requiredBaseQty),
+          quantity: movementQuantity,
           referenceId: savedSale.id,
           referenceType: 'SALE',
           reason: 'Sale completed',
-          previousQty: itemData.stockBalance.quantity,
-          newQty,
+          previousQty: movementPreviousQty,
+          newQty: movementNewQty,
           unitCost: itemData.costPrice,
           createdBy: cashier.id,
         });
