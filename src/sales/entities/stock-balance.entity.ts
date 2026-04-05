@@ -11,7 +11,7 @@ export class StockBalance {
   @Column({ name: 'location_id' })
   locationId: string;
 
-  @Column({ default: 0 })
+  @Column({ type: 'decimal', precision: 12, scale: 3, default: 0 })
   quantity: number;
 
   @UpdateDateColumn({ name: 'updated_at' })

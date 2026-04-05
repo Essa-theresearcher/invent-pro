@@ -7,6 +7,7 @@ import { SaleItem } from './entities/sale-item.entity';
 import { InventoryMovement } from './entities/inventory-movement.entity';
 import { StockBalance } from './entities/stock-balance.entity';
 import { UserLocation } from './entities/user-location.entity';
+import { StockRequest } from './entities/stock-request.entity';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
 
@@ -18,6 +19,7 @@ import { User } from '../users/entities/user.entity';
       InventoryMovement,
       StockBalance,
       UserLocation,
+      StockRequest,
       Product,
       User,
     ]),

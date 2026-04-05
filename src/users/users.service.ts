@@ -45,7 +45,10 @@ export class UsersService {
   /**
    * Find all users with optional filtering
    */
-  async findAll(filters?: { role?: Role; isActive?: boolean }): Promise<User[]> {
+  async findAll(
+    filters?: { role?: Role; isActive?: boolean },
+    actor?: { role?: Role; assignedLocationId?: string | null; assigned_location_id?: string | null },
+  ): Promise<User[]> {
     const query = this.usersRepository.createQueryBuilder('user');
 
     if (filters?.role) {
@@ -54,6 +57,17 @@ export class UsersService {
 
     if (filters?.isActive !== undefined) {
       query.andWhere('user.isActive = :isActive', { isActive: filters.isActive });
+    }
+
+    const actorRole = actor?.role;
+    const actorLocationId = actor?.assignedLocationId ?? actor?.assigned_location_id ?? null;
+
+    if (actorRole && actorRole !== Role.OWNER) {
+      if (!actorLocationId) {
+        query.andWhere('1 = 0');
+      } else {
+        query.andWhere('user.assignedLocationId = :actorLocationId', { actorLocationId });
+      }
     }
 
     query.orderBy('user.createdAt', 'DESC');

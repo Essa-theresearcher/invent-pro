@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Product, ProductStatus } from './entities/product.entity';
+import { Product, ProductStatus, ProductBaseUnitType } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { StockBalance } from '../sales/entities/stock-balance.entity';
+import { LocationsService } from '../locations/locations.service';
+import { Role } from '../users/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -12,6 +14,7 @@ export class ProductsService {
     private productsRepository: Repository<Product>,
     @InjectRepository(StockBalance)
     private stockBalanceRepository: Repository<StockBalance>,
+    private locationsService: LocationsService,
   ) {}
 
   /**
@@ -22,8 +25,26 @@ export class ProductsService {
     category?: string;
     lowStock?: boolean;
     outOfStock?: boolean;
-  }): Promise<Product[]> {
+    includeInactive?: boolean;
+    actor?: { role?: string; assignedLocationId?: string | null; assigned_location_id?: string | null };
+  }): Promise<any[]> {
+    const actor = filters?.actor;
+    const actorRole = actor?.role;
+    const actorLocationId = actor?.assignedLocationId ?? actor?.assigned_location_id ?? null;
+
+    if (actorRole && actorRole !== Role.OWNER && actorLocationId) {
+      return this.findAllByLocation(actorLocationId, {
+        search: filters?.search,
+        category: filters?.category,
+      });
+    }
+
     const query = this.productsRepository.createQueryBuilder('product');
+
+    // By default, hide inactive products (safe deletion behavior)
+    if (!filters?.includeInactive) {
+      query.andWhere('product.isActive = :isActive', { isActive: true });
+    }
 
     if (filters?.search) {
       query.andWhere(
@@ -60,12 +81,66 @@ export class ProductsService {
     return product;
   }
 
+  private normalizeLocationName(name?: string): string {
+    return String(name || '').trim().toUpperCase();
+  }
+
+  private async getMainLocationIdStrict(): Promise<string> {
+    const allLocations = await this.locationsService.findAll();
+    const main = allLocations.find((l: any) => {
+      const n = this.normalizeLocationName(l?.name);
+      return n === 'MAIN' || n === 'MAIN STORE' || n === 'INSHAR MAIN';
+    }) || allLocations.find((l: any) => this.normalizeLocationName(l?.name).includes('MAIN'));
+
+    if (!main?.id) {
+      throw new BadRequestException('MAIN location not found');
+    }
+    return String(main.id);
+  }
+
   /**
    * Create a new product
    */
-  async create(createProductDto: CreateProductDto): Promise<Product> {
+  async create(createProductDto: CreateProductDto, actor?: { id: string; role?: string; assignedLocationId?: string | null }): Promise<Product> {
     const status = this.calculateStatus(createProductDto.stock, createProductDto.minStock);
+
+    // Enforce branch restriction:
+    // Branch users cannot create a brand-new catalog item not already existing in MAIN.
+    if (actor?.id) {
+      const mainLocationId = await this.getMainLocationIdStrict();
+
+      if (actor.assignedLocationId && String(actor.assignedLocationId) !== String(mainLocationId)) {
+        const sku = String(createProductDto.sku || '').trim();
+        const name = String(createProductDto.name || '').trim();
+
+        const existing = await this.productsRepository.findOne({
+          where: [
+            ...(sku ? [{ sku }] as any : []),
+            ...(name ? [{ name }] as any : []),
+          ],
+        });
+
+        if (!existing) {
+          throw new ForbiddenException(
+            'Branch stores cannot add new items that do not exist in INSHAR MAIN. Request item creation in MAIN first.'
+          );
+        }
+      }
+    }
     
+    const duplicate = await this.productsRepository.findOne({
+      where: [
+        { sku: createProductDto.sku },
+        { name: createProductDto.name },
+      ],
+    });
+
+    if (duplicate) {
+      throw new ConflictException(
+        `Product with SKU "${createProductDto.sku}" or name "${createProductDto.name}" already exists`
+      );
+    }
+
     const product = new Product();
     product.name = createProductDto.name;
     product.sku = createProductDto.sku;
@@ -75,6 +150,22 @@ export class ProductsService {
     product.minStock = createProductDto.minStock;
     product.status = status;
     product.isActive = true;
+    product.retailPrice = createProductDto.retailPrice ?? createProductDto.price;
+    product.wholesalePrice = createProductDto.wholesalePrice ?? null;
+
+    product.baseUnitType = createProductDto.baseUnitType || ProductBaseUnitType.PIECE;
+    product.baseUnitName = createProductDto.baseUnitName || (product.baseUnitType === ProductBaseUnitType.WEIGHT ? 'kg' : product.baseUnitType === ProductBaseUnitType.VOLUME ? 'litre' : 'piece');
+    product.pricePerBaseUnit = createProductDto.pricePerBaseUnit ?? createProductDto.price;
+    if (product.baseUnitType === ProductBaseUnitType.WEIGHT) {
+      const base = Number(product.pricePerBaseUnit || createProductDto.price || 0);
+      product.priceQuarterUnit = Number((base * 0.25).toFixed(2));
+      product.priceHalfUnit = Number((base * 0.5).toFixed(2));
+      product.priceThreeQuarterUnit = Number((base * 0.75).toFixed(2));
+    } else {
+      product.priceHalfUnit = createProductDto.priceHalfUnit ?? null;
+      product.priceQuarterUnit = createProductDto.priceQuarterUnit ?? null;
+      product.priceThreeQuarterUnit = createProductDto.priceThreeQuarterUnit ?? null;
+    }
     
     if (createProductDto.description) product.description = createProductDto.description;
     if (createProductDto.imageUrl) product.imageUrl = createProductDto.imageUrl;
@@ -87,14 +178,47 @@ export class ProductsService {
    */
   async update(id: string, updateData: Partial<CreateProductDto>): Promise<Product> {
     const product = await this.findOne(id);
-    
-    Object.assign(product, updateData);
-    
+
+    if (updateData.name !== undefined) product.name = updateData.name;
+    if (updateData.sku !== undefined) product.sku = updateData.sku;
+    if (updateData.category !== undefined) product.category = updateData.category;
+    if (updateData.description !== undefined) product.description = updateData.description;
+    if (updateData.imageUrl !== undefined) product.imageUrl = updateData.imageUrl;
+
+    if (updateData.price !== undefined) {
+      product.unitPrice = updateData.price;
+      if (updateData.retailPrice === undefined) {
+        product.retailPrice = updateData.price;
+      }
+      if (updateData.pricePerBaseUnit === undefined) {
+        product.pricePerBaseUnit = updateData.price;
+      }
+    }
+
+    if (updateData.stock !== undefined) product.stock = updateData.stock;
+    if (updateData.minStock !== undefined) product.minStock = updateData.minStock;
+
+    if (updateData.baseUnitType !== undefined) product.baseUnitType = updateData.baseUnitType;
+    if (updateData.baseUnitName !== undefined) product.baseUnitName = updateData.baseUnitName;
+    if (updateData.pricePerBaseUnit !== undefined) product.pricePerBaseUnit = updateData.pricePerBaseUnit;
+    if (updateData.priceHalfUnit !== undefined) product.priceHalfUnit = updateData.priceHalfUnit;
+    if (updateData.priceQuarterUnit !== undefined) product.priceQuarterUnit = updateData.priceQuarterUnit;
+    if (updateData.priceThreeQuarterUnit !== undefined) product.priceThreeQuarterUnit = updateData.priceThreeQuarterUnit;
+    if (updateData.retailPrice !== undefined) product.retailPrice = updateData.retailPrice;
+    if (updateData.wholesalePrice !== undefined) product.wholesalePrice = updateData.wholesalePrice;
+
+    if ((product.baseUnitType || ProductBaseUnitType.PIECE) === ProductBaseUnitType.WEIGHT) {
+      const base = Number(product.pricePerBaseUnit ?? product.unitPrice ?? 0);
+      product.priceQuarterUnit = Number((base * 0.25).toFixed(2));
+      product.priceHalfUnit = Number((base * 0.5).toFixed(2));
+      product.priceThreeQuarterUnit = Number((base * 0.75).toFixed(2));
+    }
+
     // Recalculate status if stock or minStock changed
     if (updateData.stock !== undefined || updateData.minStock !== undefined) {
       product.status = this.calculateStatus(product.stock, product.minStock);
     }
-    
+
     return this.productsRepository.save(product);
   }
 
@@ -124,6 +248,15 @@ export class ProductsService {
     await this.productsRepository.remove(product);
   }
 
+  /**
+   * Soft-deactivate product (safe delete)
+   */
+  async deactivate(id: string): Promise<Product> {
+    const product = await this.findOne(id);
+    product.isActive = false;
+    return this.productsRepository.save(product);
+  }
+
   private calculateStatus(stock: number, minStock: number): ProductStatus {
     if (stock === 0) return ProductStatus.OUT_OF_STOCK;
     if (stock < minStock) return ProductStatus.LOW_STOCK;
@@ -151,6 +284,14 @@ export class ProductsService {
         'product.sku',
         'product.category',
         'product.unitPrice',
+        'product.baseUnitType',
+        'product.baseUnitName',
+        'product.pricePerBaseUnit',
+        'product.priceHalfUnit',
+        'product.priceQuarterUnit',
+        'product.priceThreeQuarterUnit',
+        'product.retailPrice',
+        'product.wholesalePrice',
         'product.stock',
         'product.minStock',
         'product.status',
@@ -185,12 +326,20 @@ export class ProductsService {
       sku: p.product_sku,
       category: p.product_category,
       unitPrice: parseFloat(p.product_unit_price) || 0,
-      stock: parseInt(p.product_stock) || 0,
-      minStock: parseInt(p.product_min_stock) || 0,
+      baseUnitType: p.product_base_unit_type || 'PIECE',
+      baseUnitName: p.product_base_unit_name || 'piece',
+      pricePerBaseUnit: p.product_price_per_base_unit != null ? parseFloat(p.product_price_per_base_unit) : (parseFloat(p.product_unit_price) || 0),
+      priceHalfUnit: p.product_price_half_unit != null ? parseFloat(p.product_price_half_unit) : null,
+      priceQuarterUnit: p.product_price_quarter_unit != null ? parseFloat(p.product_price_quarter_unit) : null,
+      priceThreeQuarterUnit: p.product_price_three_quarter_unit != null ? parseFloat(p.product_price_three_quarter_unit) : null,
+      retailPrice: p.product_retail_price != null ? parseFloat(p.product_retail_price) : (parseFloat(p.product_unit_price) || 0),
+      wholesalePrice: p.product_wholesale_price != null ? parseFloat(p.product_wholesale_price) : null,
+      stock: parseFloat(p.product_stock) || 0,
+      minStock: parseFloat(p.product_min_stock) || 0,
       status: p.product_status,
       // Default to true since query filters by isActive = true
       isActive: p.product_isActive !== 0 && p.product_isActive !== false && p.product_isActive !== '0',
-      stockQuantity: parseInt(p.stockQuantity) || 0,
+      stockQuantity: parseFloat(p.stockQuantity) || 0,
     }));
   }
 
@@ -210,5 +359,35 @@ export class ProductsService {
       });
       await this.stockBalanceRepository.save(stockBalance);
     }
+  }
+
+  /**
+   * Reconcile global product stock from default single location (Main Store)
+   * Useful when historical data left product.stock out of sync with stock_balances
+   */
+  async reconcileGlobalStockFromDefaultLocation(): Promise<{ updated: number; locationId: string }> {
+    const defaultLocation = await this.locationsService.getOrCreateDefault();
+    const locationId = String(defaultLocation.id);
+
+    const allProducts = await this.productsRepository.find();
+    let updated = 0;
+
+    for (const product of allProducts) {
+      const stockBalance = await this.stockBalanceRepository.findOne({
+        where: { productId: product.id, locationId },
+      });
+
+      const reconciledStock = stockBalance?.quantity || 0;
+      const reconciledStatus = this.calculateStatus(reconciledStock, product.minStock || 0);
+
+      if (product.stock !== reconciledStock || product.status !== reconciledStatus) {
+        product.stock = reconciledStock;
+        product.status = reconciledStatus;
+        await this.productsRepository.save(product);
+        updated++;
+      }
+    }
+
+    return { updated, locationId };
   }
 }

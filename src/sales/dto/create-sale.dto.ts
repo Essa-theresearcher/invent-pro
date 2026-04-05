@@ -1,6 +1,13 @@
-import { IsArray, IsNotEmpty, IsString, IsNumber, Min, IsOptional, ValidateNested } from 'class-validator';
+import { IsArray, IsNotEmpty, IsString, IsNumber, Min, IsOptional, ValidateNested, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export enum SaleUnit {
+  FULL = 'FULL',
+  HALF = 'HALF',
+  QUARTER = 'QUARTER',
+  PIECE = 'PIECE',
+}
 
 export class SaleItemDto {
   @ApiProperty({ description: 'Product ID' })
@@ -9,9 +16,20 @@ export class SaleItemDto {
   productId: string;
 
   @ApiProperty({ description: 'Quantity to purchase', example: 2 })
-  @IsNumber()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
   quantity: number;
+
+  @ApiPropertyOptional({ description: 'Sale unit mode', enum: SaleUnit, example: SaleUnit.FULL })
+  @IsEnum(SaleUnit)
+  @IsOptional()
+  saleUnit?: SaleUnit;
+
+  @ApiPropertyOptional({ description: 'Base quantity factor override (e.g. 1, 0.5, 0.25)', example: 0.5 })
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsOptional()
+  @Min(0.001)
+  baseQtyFactor?: number;
 
   @ApiPropertyOptional({ description: 'Unit discount amount' })
   @IsNumber()

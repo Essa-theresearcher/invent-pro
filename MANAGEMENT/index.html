@@ -19,25 +19,33 @@
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="#" class="nav-item" data-section="products">
-                <i class="fas fa-box"></i>
-                <span>Products</span>
-            </a>
             <a href="#" class="nav-item" data-section="categories">
                 <i class="fas fa-tags"></i>
                 <span>Categories</span>
             </a>
             <a href="#" class="nav-item" data-section="inventory">
                 <i class="fas fa-warehouse"></i>
-                <span>Inventory</span>
+                <span>Products / Inventory</span>
             </a>
-            <a href="#" class="nav-item" data-section="suppliers">
-                <i class="fas fa-truck"></i>
-                <span>Suppliers</span>
+            <a href="#" class="nav-item" data-section="sales">
+                <i class="fas fa-receipt"></i>
+                <span>Sales</span>
+            </a>
+            <a href="#" class="nav-item" data-section="transfer-history">
+                <i class="fas fa-right-left"></i>
+                <span>Transfer History</span>
+            </a>
+            <a href="#" class="nav-item" data-section="stock-requests">
+                <i class="fas fa-truck-loading"></i>
+                <span>Request Stock</span>
+            </a>
+            <a href="#" class="nav-item" data-section="damaged-adjustments">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span>Damaged / Adjustments</span>
             </a>
             <a href="#" class="nav-item" data-section="users">
                 <i class="fas fa-users"></i>
-                <span>Users</span>
+                <span>Staff / Cashiers</span>
             </a>
             <a href="#" class="nav-item" data-section="reports">
                 <i class="fas fa-chart-bar"></i>
@@ -66,6 +74,13 @@
                 <input type="text" placeholder="Search products, categories...">
             </div>
             <div class="header-actions">
+                <div class="store-switcher">
+                    <label for="storeSelector">Store:</label>
+                    <select id="storeSelector" class="store-selector">
+                        <option value="">Select store</option>
+                    </select>
+                    <span id="activeStoreBadge" class="active-store-badge">All Stores</span>
+                </div>
                 <button class="icon-btn" title="Notifications">
                     <i class="fas fa-bell"></i>
                     <span class="badge">3</span>
@@ -86,23 +101,13 @@
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <i class="fas fa-box"></i>
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                        <i class="fas fa-cash-register"></i>
                     </div>
                     <div class="stat-info">
-                        <h3>Total Products</h3>
-                        <p class="stat-number" id="totalProducts">10</p>
-                        <span class="stat-change positive"><i class="fas fa-arrow-up"></i> 12% this month</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                        <i class="fas fa-tags"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>Categories</h3>
-                        <p class="stat-number" id="totalCategories">6</p>
-                        <span class="stat-change positive"><i class="fas fa-arrow-up"></i> 3 new</span>
+                        <h3>Today’s Sales</h3>
+                        <p class="stat-number" id="todaySales">KSh 0.00</p>
+                        <span class="stat-change neutral"><i class="fas fa-calendar-day"></i> Branch only</span>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -110,19 +115,39 @@
                         <i class="fas fa-warehouse"></i>
                     </div>
                     <div class="stat-info">
-                        <h3>Total Stock</h3>
-                        <p class="stat-number" id="totalStock">380</p>
-                        <span class="stat-change neutral"><i class="fas fa-minus"></i> No change</span>
+                        <h3>Current Stock Count</h3>
+                        <p class="stat-number" id="totalStock">0</p>
+                        <span class="stat-change neutral"><i class="fas fa-store"></i> Active branch</span>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                        <i class="fas fa-dollar-sign"></i>
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);">
+                        <i class="fas fa-exclamation-triangle"></i>
                     </div>
                     <div class="stat-info">
-                        <h3>Total Value</h3>
-                        <p class="stat-number" id="totalValue">$32,450</p>
-                        <span class="stat-change positive"><i class="fas fa-arrow-up"></i> 8% this month</span>
+                        <h3>Low Stock Items</h3>
+                        <p class="stat-number" id="lowStockItemsCount">0</p>
+                        <span class="stat-change negative"><i class="fas fa-bell"></i> Needs attention</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <i class="fas fa-truck-loading"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Pending Stock Requests</h3>
+                        <p class="stat-number" id="pendingStockRequests">0</p>
+                        <span class="stat-change neutral"><i class="fas fa-clock"></i> Awaiting main store</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Recent Transfers Received</h3>
+                        <p class="stat-number" id="recentTransfersReceived">0</p>
+                        <span class="stat-change positive"><i class="fas fa-box-open"></i> Last 7 days</span>
                     </div>
                 </div>
             </div>
@@ -167,51 +192,6 @@
                     </div>
                     <div class="low-stock-list" id="lowStockAlerts"></div>
                 </div>
-            </div>
-        </section>
-
-        <section class="content-section" id="products">
-            <div class="section-header">
-                <h1>Products</h1>
-                <p>Manage your product inventory</p>
-            </div>
-
-            <div class="table-container">
-                <div class="table-header">
-                    <div class="table-actions">
-                        <div class="search-box">
-                            <i class="fas fa-search"></i>
-                            <input type="text" placeholder="Search products..." id="productSearch">
-                        </div>
-                        <select class="filter-select" id="categoryFilter">
-                            <option value="">All Categories</option>
-                        </select>
-                        <select class="filter-select" id="stockFilter">
-                            <option value="">All Stock Status</option>
-                            <option value="in-stock">In Stock</option>
-                            <option value="low-stock">Low Stock</option>
-                            <option value="out-of-stock">Out of Stock</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" id="addProductBtn">
-                        <i class="fas fa-plus"></i> Add Product
-                    </button>
-                </div>
-                <table class="data-table" id="productsTable">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="selectAll"></th>
-                            <th>Product Name</th>
-                            <th>SKU</th>
-                            <th>Category</th>
-                            <th>Price</th>
-                            <th>Stock</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
             </div>
         </section>
 
@@ -271,6 +251,9 @@
                             <input type="text" placeholder="Search inventory..." id="inventorySearch">
                         </div>
                     </div>
+                    <button class="btn btn-primary" id="addProductBtn">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
                     <button class="btn btn-primary" id="adjustStockBtn">
                         <i class="fas fa-edit"></i> Adjust Stock
                     </button>
@@ -293,38 +276,61 @@
             </div>
         </section>
 
-        <section class="content-section" id="suppliers">
+        <section class="content-section" id="sales">
             <div class="section-header">
-                <h1>Suppliers</h1>
-                <p>Manage your product suppliers</p>
+                <h1>Sales</h1>
+                <p>Branch sales summary and quick insights</p>
             </div>
-
             <div class="table-container">
                 <div class="table-header">
-                    <div class="table-actions">
-                        <div class="search-box">
-                            <i class="fas fa-search"></i>
-                            <input type="text" placeholder="Search suppliers..." id="supplierSearch">
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" id="addSupplierBtn">
-                        <i class="fas fa-plus"></i> Add Supplier
-                    </button>
+                    <h3>Sales Summary</h3>
                 </div>
-                <table class="data-table" id="suppliersTable">
+                <div style="padding: 16px; color: #4a5568;">
+                    Use POS for transactions. This section shows branch-focused sales summary cards and reports.
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section" id="transfer-history">
+            <div class="section-header">
+                <h1>Transfer History</h1>
+                <p>Stock received from main store</p>
+            </div>
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Recent Transfers Received</h3>
+                </div>
+                <table class="data-table" id="transferHistoryTable">
                     <thead>
                         <tr>
-                            <th>Supplier Name</th>
-                            <th>Contact Person</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Products</th>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Qty</th>
                             <th>Status</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
+            </div>
+        </section>
+
+        <section class="content-section" id="damaged-adjustments">
+            <div class="section-header">
+                <h1>Damaged / Adjustments</h1>
+                <p>Track damaged/lost stock adjustments for this branch</p>
+            </div>
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Adjustments</h3>
+                    <button class="btn btn-primary" id="addAdjustmentBtn">
+                        <i class="fas fa-plus"></i> Record Adjustment
+                    </button>
+                </div>
+                <div style="padding: 16px; color: #4a5568;">
+                    Adjustment workflow scaffold is ready. Connect final business rules before enabling live stock mutation.
+                </div>
             </div>
         </section>
 
@@ -368,6 +374,100 @@
                             <th>Location</th>
                             <th>Status</th>
                             <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section" id="locations">
+            <div class="section-header">
+                <h1>Locations</h1>
+                <p>View all store branches in your multi-store setup</p>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Store Locations</h3>
+                </div>
+                <table class="data-table" id="locationsTable">
+                    <thead>
+                        <tr>
+                            <th>Store Name</th>
+                            <th>Address</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section" id="stock-requests">
+            <div class="section-header">
+                <h1>Stock Requests</h1>
+                <p>Branch manager can request stock transfer from MAIN to this branch</p>
+            </div>
+
+            <div class="table-container" id="managerRequestStockPanel">
+                <div class="table-header">
+                    <h3>Create Stock Request</h3>
+                </div>
+                <div style="padding:16px;">
+                    <form id="createStockRequestForm" class="friendly-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="requestProductId">Product</label>
+                                <select id="requestProductId" required>
+                                    <option value="">Select product</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="requestQuantity">Quantity</label>
+                                <input type="number" id="requestQuantity" min="1" step="1" required placeholder="Enter quantity">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="requestNote">Note (optional)</label>
+                            <textarea id="requestNote" rows="2" placeholder="Reason for request, urgency, etc."></textarea>
+                        </div>
+                        <div class="modal-actions" style="padding:0;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Submit Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="table-actions">
+                        <select class="filter-select" id="stockRequestStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline" id="refreshStockRequestsBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <table class="data-table" id="stockRequestsTable">
+                    <thead>
+                        <tr>
+                            <th>Created</th>
+                            <th>Product</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Qty</th>
+                            <th>Status</th>
+                            <th>Requested By</th>
+                            <th>Note</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -482,4 +582,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-

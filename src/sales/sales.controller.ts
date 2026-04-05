@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Req, HttpCode, HttpStatus, Query, Res } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Param, UseGuards, Req, HttpCode, HttpStatus, Query, Res, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { SalesService } from './sales.service';
@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../users/entities/user.entity';
+import { StockRequestStatus } from './entities/stock-request.entity';
 
 @ApiTags('Sales')
 @ApiBearerAuth()
@@ -34,6 +35,46 @@ export class SalesController {
     return this.salesService.createSale(createSaleDto, req.user);
   }
 
+  @Post('stock-requests')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Branch manager requests stock increment from MAIN' })
+  @ApiResponse({ status: 201, description: 'Stock request created' })
+  async createStockRequest(
+    @Body() body: { productId: string; quantity: number; note?: string },
+    @Req() req: any,
+  ) {
+    return this.salesService.createStockRequest(req.user, body);
+  }
+
+  @Get('stock-requests')
+  @Roles(Role.OWNER, Role.MANAGER)
+  @ApiOperation({ summary: 'List stock requests' })
+  @ApiQuery({ name: 'status', required: false, enum: StockRequestStatus })
+  @ApiResponse({ status: 200, description: 'Stock requests list' })
+  async listStockRequests(@Req() req: any, @Query('status') status?: StockRequestStatus) {
+    return this.salesService.listStockRequests(req.user, status);
+  }
+
+  @Put('stock-requests/:id/approve')
+  @Roles(Role.OWNER, Role.MANAGER)
+  @ApiOperation({ summary: 'Approve stock request (MAIN -> branch)' })
+  @ApiResponse({ status: 200, description: 'Stock request approved' })
+  async approveStockRequest(@Param('id') id: string, @Req() req: any) {
+    return this.salesService.approveStockRequest(id, req.user);
+  }
+
+  @Put('stock-requests/:id/reject')
+  @Roles(Role.OWNER, Role.MANAGER)
+  @ApiOperation({ summary: 'Reject stock request' })
+  @ApiResponse({ status: 200, description: 'Stock request rejected' })
+  async rejectStockRequest(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+    @Req() req: any,
+  ) {
+    return this.salesService.rejectStockRequest(id, req.user, body?.reason);
+  }
+
   /**
    * GET /sales/:id
    * Get sale details by ID
@@ -56,7 +97,7 @@ export class SalesController {
   @ApiOperation({ summary: 'Get HTML receipt for printing' })
   @ApiResponse({ status: 200, description: 'HTML receipt ready for print' })
   async getReceipt(
-    @Param('id') id: string, 
+    @Param('id') id: string,
     @Res() res: Response,
     @Query('token') token?: string,
   ) {
@@ -64,15 +105,20 @@ export class SalesController {
     if (!token) {
       return res.status(401).send('Authentication required');
     }
-    
+
     // For now, we'll skip JWT validation and just return the receipt
     // In production, you'd validate the token here
     try {
       const sale = await this.salesService.getSaleById(id);
-      
-      // Get location info if available
-      const locationName = sale.locationId || 'Main Store';
-      
+
+      // Resolve human-friendly branch name for receipt header
+      const normalize = (v: string) => String(v || '').trim().toUpperCase();
+      const locFromRelation = (sale as any)?.location?.name ? String((sale as any).location.name) : '';
+      const locId = String((sale as any)?.locationId || '');
+      const locationName = locFromRelation
+        || (normalize(locId).includes('MAIN') ? 'INSHAR MAIN' : '')
+        || (locId || 'Main Store');
+
       // Generate HTML receipt with professional styling
       const html = `
 <!DOCTYPE html>
@@ -86,28 +132,28 @@ export class SalesController {
       padding: 0;
       box-sizing: border-box;
     }
-    body { 
-      font-family: 'Courier New', Courier, monospace; 
-      margin: 0; 
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
       padding: 10px;
       background: #fff;
       color: #000;
       font-size: 12px;
     }
-    .receipt { 
-      max-width: 280px; 
-      margin: 0 auto; 
+    .receipt {
+      max-width: 280px;
+      margin: 0 auto;
       border: 1px solid #ccc;
       padding: 15px;
     }
-    .header { 
-      text-align: center; 
-      border-bottom: 2px dashed #000; 
-      padding-bottom: 15px; 
-      margin-bottom: 15px; 
+    .header {
+      text-align: center;
+      border-bottom: 2px dashed #000;
+      padding-bottom: 15px;
+      margin-bottom: 15px;
     }
-    .title { 
-      font-size: 22px; 
+    .title {
+      font-size: 22px;
       font-weight: bold;
       margin-bottom: 5px;
     }
@@ -115,34 +161,34 @@ export class SalesController {
       font-size: 14px;
       margin-bottom: 10px;
     }
-    .info { 
-      font-size: 11px; 
+    .info {
+      font-size: 11px;
       color: #333;
       line-height: 1.4;
     }
-    .items { 
-      border-bottom: 1px dashed #000; 
-      padding: 10px 0; 
+    .items {
+      border-bottom: 1px dashed #000;
+      padding: 10px 0;
       margin-bottom: 10px;
     }
-    .item { 
-      display: flex; 
-      justify-content: space-between; 
+    .item {
+      display: flex;
+      justify-content: space-between;
       margin-bottom: 6px;
       line-height: 1.3;
     }
-    .item-name { 
-      flex: 1; 
+    .item-name {
+      flex: 1;
       text-align: left;
       padding-right: 8px;
       word-break: break-word;
     }
-    .item-qty { 
-      width: 35px; 
+    .item-qty {
+      width: 35px;
       text-align: center;
     }
-    .item-price { 
-      width: 70px; 
+    .item-price {
+      width: 70px;
       text-align: right;
     }
     .item-breakdown {
@@ -150,25 +196,25 @@ export class SalesController {
       color: #666;
       margin-left: 10px;
     }
-    .totals { 
-      padding: 10px 0; 
+    .totals {
+      padding: 10px 0;
     }
-    .total-row { 
-      display: flex; 
-      justify-content: space-between; 
+    .total-row {
+      display: flex;
+      justify-content: space-between;
       margin-bottom: 5px;
     }
-    .grand-total { 
-      font-weight: bold; 
-      font-size: 16px; 
-      border-top: 2px solid #000; 
-      padding-top: 10px; 
+    .grand-total {
+      font-weight: bold;
+      font-size: 16px;
+      border-top: 2px solid #000;
+      padding-top: 10px;
       margin-top: 5px;
     }
-    .footer { 
-      text-align: center; 
-      margin-top: 20px; 
-      font-size: 11px; 
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 11px;
       color: #333;
       border-top: 1px dashed #ccc;
       padding-top: 15px;
@@ -179,16 +225,16 @@ export class SalesController {
       margin: 10px 0;
     }
     @media print {
-      body { 
-        padding: 0; 
+      body {
+        padding: 0;
         margin: 0;
       }
       .receipt {
         border: none;
         max-width: 100%;
       }
-      .no-print { 
-        display: none !important; 
+      .no-print {
+        display: none !important;
       }
     }
   </style>
@@ -205,7 +251,7 @@ export class SalesController {
         Cashier ID: ${sale.cashierId ? sale.cashierId.substring(0, 8) : 'N/A'}
       </div>
     </div>
-    
+
     <div class="items">
       ${sale.items.map((item: any) => `
         <div class="item">
@@ -219,7 +265,7 @@ export class SalesController {
         </div>
       `).join('')}
     </div>
-    
+
     <div class="totals">
       <div class="total-row">
         <span>Subtotal:</span>
@@ -244,14 +290,14 @@ export class SalesController {
         <span>${sale.paymentMethod}</span>
       </div>
     </div>
-    
+
     <div class="footer">
       <div class="barcode">*${sale.receiptNumber}*</div>
       <p>Thank you for your purchase!</p>
       <p>Items: ${sale.items.length} | Total Qty: ${sale.items.reduce((sum: number, i: any) => sum + i.quantity, 0)}</p>
       <p>Please come again!</p>
     </div>
-    
+
     <div class="no-print" style="text-align: center; margin-top: 20px;">
       <button onclick="window.print()" style="padding: 10px 20px; cursor: pointer; margin-right: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px;">🖨️ Print</button>
       <button onclick="window.close()" style="padding: 10px 20px; cursor: pointer; background: #f44336; color: white; border: none; border-radius: 4px;">❌ Close</button>
@@ -260,7 +306,7 @@ export class SalesController {
 </body>
 </html>
       `;
-      
+
       res.set('Content-Type', 'text/html');
       return res.send(html);
     } catch (error) {
@@ -293,8 +339,16 @@ export class SalesController {
   @ApiResponse({ status: 200, description: 'List of recent sales' })
   async getSalesByLocation(
     @Param('locationId') locationId: string,
+    @Req() req: any,
     @Query('limit') limit?: string,
   ) {
+    const actorRole = req.user?.role;
+    const actorLocationId = req.user?.assignedLocationId ?? req.user?.assigned_location_id ?? null;
+
+    if (actorRole !== Role.OWNER && actorLocationId && String(actorLocationId) !== String(locationId)) {
+      throw new ForbiddenException('Cannot access sales for another location');
+    }
+
     const limitNum = limit ? parseInt(limit) : 10;
     return this.salesService.getSalesByLocation(locationId, limitNum);
   }

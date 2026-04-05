@@ -15,17 +15,24 @@ async function seed() {
   const userRepository = dataSource.getRepository(User);
   const locationRepository = dataSource.getRepository(Location);
   
-  // Get or create default location
-  let location = await locationRepository.findOne({ where: { name: 'Main Store' } });
-  if (!location) {
-    location = locationRepository.create({
-      name: 'Main Store',
-      address: '123 Main Street',
-      isActive: true,
-    });
-    await locationRepository.save(location);
-    console.log('Created location: Main Store');
+  // Get or create required locations
+  async function getOrCreateLocation(name: string, address: string) {
+    let location = await locationRepository.findOne({ where: { name } });
+    if (!location) {
+      location = locationRepository.create({
+        name,
+        address,
+        isActive: true,
+      });
+      await locationRepository.save(location);
+      console.log(`Created location: ${name}`);
+    }
+    return location;
   }
+
+  const mainLocation = await getOrCreateLocation('MAIN', 'Main Store Address');
+  const sixthStreetLocation = await getOrCreateLocation('INSHA 6TH', 'Insha 6th Address');
+  await getOrCreateLocation('11', '11th Street Address');
   
   // Create owner/admin user
   const existingOwner = await userRepository.findOne({
@@ -42,7 +49,7 @@ async function seed() {
       lastName: 'User',
       role: Role.OWNER,
       isActive: true,
-      assignedLocationId: location.id,
+      assignedLocationId: mainLocation.id,
     });
 
     await userRepository.save(owner);
@@ -60,7 +67,7 @@ async function seed() {
   if (existingCashier) {
     // Update location if not set
     if (!existingCashier.assignedLocationId) {
-      existingCashier.assignedLocationId = location.id;
+      existingCashier.assignedLocationId = sixthStreetLocation.id;
       await userRepository.save(existingCashier);
       console.log('Cashier location updated!');
     }
@@ -73,7 +80,7 @@ async function seed() {
       lastName: 'User',
       role: Role.CASHIER,
       isActive: true,
-      assignedLocationId: location.id,
+      assignedLocationId: sixthStreetLocation.id,
     });
 
     await userRepository.save(cashier);
@@ -81,7 +88,7 @@ async function seed() {
     console.log('Email: cashier@pos.com');
     console.log('Password: cashier123');
     console.log('Role: CASHIER');
-    console.log('Location ID:', location.id);
+    console.log('Location ID:', sixthStreetLocation.id);
   }
 
   await dataSource.destroy();

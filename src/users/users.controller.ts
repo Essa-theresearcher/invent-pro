@@ -40,11 +40,15 @@ export class UsersController {
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'List of users' })
   async findAll(
+    @Request() req: any,
     @Query('role') role?: Role,
     @Query('isActive') isActive?: string,
   ) {
     const active = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
-    return this.usersService.findAll({ role, isActive: active as boolean | undefined });
+    return this.usersService.findAll(
+      { role, isActive: active as boolean | undefined },
+      req.user,
+    );
   }
 
   /**

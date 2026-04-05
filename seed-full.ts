@@ -17,17 +17,24 @@ async function seed() {
   const locationRepo = dataSource.getRepository(Location);
   const productRepo = dataSource.getRepository(Product);
 
-  // 1. Create or find default location
-  let location = await locationRepo.findOne({ where: { name: 'Main Store' } });
-  if (!location) {
-    location = locationRepo.create({
-      name: 'Main Store',
-      address: '123 Main Street',
-      isActive: true,
-    });
-    await locationRepo.save(location);
-    console.log('Created location: Main Store');
+  // 1. Create or find required locations
+  async function getOrCreateLocation(name: string, address: string) {
+    let location = await locationRepo.findOne({ where: { name } });
+    if (!location) {
+      location = locationRepo.create({
+        name,
+        address,
+        isActive: true,
+      });
+      await locationRepo.save(location);
+      console.log(`Created location: ${name}`);
+    }
+    return location;
   }
+
+  const mainLocation = await getOrCreateLocation('MAIN', 'Main Store Address');
+  const sixthStreetLocation = await getOrCreateLocation('INSHA 6TH', 'Insha 6th Address');
+  const eleventhStreetLocation = await getOrCreateLocation('11', '11th Street Address');
 
   // 2. Create owner user
   let owner = await userRepo.findOne({ where: { email: 'admin@pos.com' } });
@@ -39,7 +46,7 @@ async function seed() {
       lastName: 'User',
       role: Role.OWNER,
       isActive: true,
-      assignedLocationId: location.id,
+      assignedLocationId: mainLocation.id,
     });
     await userRepo.save(owner);
     console.log('Created owner: admin@pos.com / admin123');
@@ -55,12 +62,12 @@ async function seed() {
       lastName: 'User',
       role: Role.CASHIER,
       isActive: true,
-      assignedLocationId: location.id,
+      assignedLocationId: sixthStreetLocation.id,
     });
     await userRepo.save(cashier);
     console.log('Created cashier: cashier@pos.com / cashier123');
   } else {
-    cashier.assignedLocationId = location.id;
+    cashier.assignedLocationId = sixthStreetLocation.id;
     await userRepo.save(cashier);
     console.log('Updated cashier location');
   }
@@ -96,7 +103,10 @@ async function seed() {
   }
 
   console.log('\nSeed completed!');
-  console.log('Location ID:', location.id);
+  console.log('Locations added:');
+  console.log('-', mainLocation.name);
+  console.log('-', sixthStreetLocation.name);
+  console.log('-', eleventhStreetLocation.name);
 
   await dataSource.destroy();
 }

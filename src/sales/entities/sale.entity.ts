@@ -1,5 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { SaleItem } from './sale-item.entity';
+import { User } from '../../users/entities/user.entity';
+import { Location } from '../../locations/entities/location.entity';
 
 export enum SaleStatus {
   PENDING = 'PENDING',
@@ -19,8 +21,16 @@ export class Sale {
   @Column({ name: 'location_id' })
   locationId: string;
 
-  @Column({ name: 'cashier_id' })
+@Column({ name: 'cashier_id' })
   cashierId: string;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'cashier_id' })
+  cashier: User;
+
+  @ManyToOne(() => Location, { eager: false, nullable: true })
+  @JoinColumn({ name: 'location_id' })
+  location: Location;
 
   @Column({ name: 'customer_id', nullable: true })
   customerId: string;

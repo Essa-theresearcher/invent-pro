@@ -22,6 +22,7 @@ import { SaleItem } from './sales/entities/sale-item.entity';
 import { InventoryMovement } from './sales/entities/inventory-movement.entity';
 import { StockBalance } from './sales/entities/stock-balance.entity';
 import { UserLocation } from './sales/entities/user-location.entity';
+import { StockRequest } from './sales/entities/stock-request.entity';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { UserLocation } from './sales/entities/user-location.entity';
           SaleItem,
           InventoryMovement,
           StockBalance,
+          StockRequest,
         ],
         synchronize: true,
         logging: false,

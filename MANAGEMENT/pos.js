@@ -10,6 +10,26 @@ let products = [];
 let paymentMethod = 'CASH';
 let productRefreshInterval = null; // For auto-refresh
 
+const CURRENCY_CODE = 'KES';
+const currencyFormatter = new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: CURRENCY_CODE,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+
+function formatMoney(value) {
+    return currencyFormatter.format(Number(value || 0));
+}
+
+const UNIT_OPTIONS = {
+    FULL: { label: 'Full', factor: 1 },
+    HALF: { label: 'Half', factor: 0.5 },
+    THREE_QUARTER: { label: 'Three Quarter', factor: 0.75 },
+    QUARTER: { label: 'Quarter', factor: 0.25 },
+    PIECE: { label: 'Piece', factor: 1 }
+};
+
 // Initialize page
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -77,6 +97,7 @@ async function refreshProducts() {
 /**
  * Initialize page with user info and products
  */
+
 async function initializePage() {
     const user = UserSession.getUser();
     
@@ -163,9 +184,9 @@ function renderProducts(productsToRender) {
         <div class="pos-product-card" onclick="addToCart('${productId}')">
             <div class="pos-product-name">${p.name}</div>
             <div class="pos-product-sku">${p.sku || ''}</div>
-            <div class="pos-product-price">$${parseFloat(p.unitPrice || 0).toFixed(2)}</div>
-            <div class="pos-product-stock ${(p.stockQuantity || p.stock || 0) <= 5 ? 'low' : ''}">
-                ${p.stockQuantity || p.stock || 0} in stock
+            <div class="pos-product-price">${formatMoney(parseFloat(p.unitPrice || 0))}</div>
+            <div class="pos-product-stock ${Number(p.stockQuantity ?? 0) <= 5 ? 'low' : ''}">
+                ${Number(p.stockQuantity ?? 0)} in stock
             </div>
         </div>
     `}).join('');
@@ -221,6 +242,44 @@ function setupKeyboardShortcuts() {
 /**
  * Add product to cart
  */
+function getAvailableUnits(product) {
+    const baseUnitType = (product.baseUnitType || 'PIECE').toUpperCase();
+    if (baseUnitType === 'PIECE') {
+        return ['PIECE'];
+    }
+    return ['FULL', 'THREE_QUARTER', 'HALF', 'QUARTER'];
+}
+
+function resolveUnitPrice(product, saleUnit) {
+    if (saleUnit === 'HALF') {
+        return parseFloat(product.priceHalfUnit ?? (parseFloat(product.pricePerBaseUnit ?? product.unitPrice ?? 0) * 0.5));
+    }
+    if (saleUnit === 'THREE_QUARTER') {
+        return parseFloat(product.priceThreeQuarterUnit ?? (parseFloat(product.pricePerBaseUnit ?? product.unitPrice ?? 0) * 0.75));
+    }
+    if (saleUnit === 'QUARTER') {
+        return parseFloat(product.priceQuarterUnit ?? (parseFloat(product.pricePerBaseUnit ?? product.unitPrice ?? 0) * 0.25));
+    }
+    return parseFloat(product.pricePerBaseUnit ?? product.unitPrice ?? 0);
+}
+
+function getDisplayUnitName(product, saleUnit) {
+    const normalizedType = String(product.baseUnitType || 'PIECE').toUpperCase();
+    const fallbackBaseName = normalizedType === 'WEIGHT'
+        ? 'kg'
+        : normalizedType === 'VOLUME'
+            ? 'litre'
+            : 'piece';
+
+    const baseName = product.baseUnitName || fallbackBaseName;
+
+    if (saleUnit === 'HALF') return `1/2 ${baseName}`;
+    if (saleUnit === 'THREE_QUARTER') return `3/4 ${baseName}`;
+    if (saleUnit === 'QUARTER') return `1/4 ${baseName}`;
+    if (saleUnit === 'FULL') return `1 ${baseName}`;
+    return baseName;
+}
+
 function addToCart(productId) {
     console.log('Adding to cart, productId:', productId, 'Type:', typeof productId);
     console.log('Current cart:', cart);
@@ -246,20 +305,22 @@ function addToCart(productId) {
     const finalProductId = String(product.id || product.product_id);
     
     // Use stockQuantity if available, otherwise fall back to stock
-    const availableStock = product.stockQuantity !== undefined ? product.stockQuantity : product.stock;
+    const availableStock = Number(product.stockQuantity ?? 0);
 
     // Find existing item - use string comparison for consistency
-    const existingItem = cart.find(item => String(item.productId) === finalProductId);
+    const defaultUnit = getAvailableUnits(product)[0];
+    const unitFactor = UNIT_OPTIONS[defaultUnit].factor;
+    const existingItem = cart.find(item => String(item.productId) === finalProductId && item.saleUnit === defaultUnit);
     
     console.log('Existing item:', existingItem);
     
     if (existingItem) {
-        // Check stock limit
-        const currentQty = existingItem.quantity;
+        // Check stock limit in base units
+        const currentBaseQty = existingItem.quantity * existingItem.baseQtyFactor;
         const maxQty = availableStock || 0;
         
-        if (currentQty >= maxQty) {
-            showToast('warning', 'Stock Limit', `Only ${maxQty} available`);
+        if ((currentBaseQty + unitFactor) > maxQty + 1e-9) {
+            showToast('warning', 'Stock Limit', `Only ${maxQty} base units available`);
             return;
         }
         
@@ -271,12 +332,30 @@ function addToCart(productId) {
             showToast('warning', 'Out of Stock', `${product.name} is out of stock`);
             return;
         }
+
+        if (unitFactor > (availableStock || 0) + 1e-9) {
+            showToast('warning', 'Stock Limit', `Not enough stock for selected unit`);
+            return;
+        }
         
+        const normalizedBaseUnitType = String(product.baseUnitType || 'PIECE').toUpperCase();
+        const normalizedBaseUnitName = product.baseUnitName || (
+            normalizedBaseUnitType === 'WEIGHT'
+                ? 'kg'
+                : normalizedBaseUnitType === 'VOLUME'
+                    ? 'litre'
+                    : 'piece'
+        );
+
         cart.push({
             productId: finalProductId,
             name: product.name,
-            price: parseFloat(product.unitPrice || 0),
+            price: resolveUnitPrice(product, defaultUnit),
             quantity: 1,
+            saleUnit: defaultUnit,
+            baseQtyFactor: unitFactor,
+            baseUnitName: normalizedBaseUnitName,
+            baseUnitType: normalizedBaseUnitType,
             maxStock: availableStock || 0
         });
         console.log('Added new item to cart');
@@ -291,19 +370,31 @@ function addToCart(productId) {
 /**
  * Update item quantity
  */
-function updateQuantity(productId, change) {
+function updateQuantity(productId, change, saleUnit = null) {
     const productIdStr = String(productId);
-    const item = cart.find(i => String(i.productId) === productIdStr);
+    const item = cart.find(i => String(i.productId) === productIdStr && (saleUnit ? i.saleUnit === saleUnit : true));
     if (!item) return;
 
     item.quantity += change;
 
     // Validate quantity
     if (item.quantity <= 0) {
-        cart = cart.filter(i => String(i.productId) !== productIdStr);
-    } else if (item.quantity > item.maxStock) {
-        item.quantity = item.maxStock;
-        showToast('warning', 'Stock Limit', `Only ${item.maxStock} available`);
+        const isFractionalBaseType = ['WEIGHT', 'VOLUME'].includes(String(item.baseUnitType || '').toUpperCase());
+        if (isFractionalBaseType) {
+            // For weighted/volume items, step down to minimum sellable quantity instead of removing
+            // Example for FULL (baseQtyFactor=1): 1 -> 0.75 -> 0.5 -> 0.25
+            // Example for HALF (baseQtyFactor=0.5): 1 -> 0.5
+            const minSellableQty = Math.max(0.25 / (item.baseQtyFactor || 1), 0.25);
+            item.quantity = Math.round(minSellableQty * 1000) / 1000;
+        } else {
+            cart = cart.filter(i => !(String(i.productId) === productIdStr && i.saleUnit === item.saleUnit));
+        }
+    } else {
+        const totalBaseQty = item.quantity * item.baseQtyFactor;
+        if (totalBaseQty > item.maxStock + 1e-9) {
+            item.quantity = Math.floor((item.maxStock / item.baseQtyFactor) * 1000) / 1000;
+            showToast('warning', 'Stock Limit', `Only ${item.maxStock} base units available`);
+        }
     }
 
     renderCart();
@@ -313,9 +404,9 @@ function updateQuantity(productId, change) {
 /**
  * Remove item from cart
  */
-function removeFromCart(productId) {
+function removeFromCart(productId, saleUnit = null) {
     const productIdStr = String(productId);
-    cart = cart.filter(i => String(i.productId) !== productIdStr);
+    cart = cart.filter(i => !(String(i.productId) === productIdStr && (saleUnit ? i.saleUnit === saleUnit : true)));
     renderCart();
     updateTotals();
 }
@@ -358,18 +449,18 @@ function renderCart() {
         <div class="pos-cart-item">
             <div class="pos-cart-item-info">
                 <div class="pos-cart-item-name">${item.name}</div>
-                <div class="pos-cart-item-price">$${item.price.toFixed(2)} each</div>
+                <div class="pos-cart-item-price">${formatMoney(item.price)} per ${getDisplayUnitName(item, item.saleUnit)}</div>
             </div>
             <div class="pos-cart-item-qty">
-                <button class="pos-cart-qty-btn" onclick="updateQuantity('${item.productId}', -1)">
+                <button class="pos-cart-qty-btn" onclick="updateQuantity('${item.productId}', -1, '${item.saleUnit}')">
                     <i class="fas fa-minus"></i>
                 </button>
                 <span class="pos-cart-qty">${item.quantity}</span>
-                <button class="pos-cart-qty-btn" onclick="updateQuantity('${item.productId}', 1)">
+                <button class="pos-cart-qty-btn" onclick="updateQuantity('${item.productId}', 1, '${item.saleUnit}')">
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
-            <button class="pos-cart-item-remove" onclick="removeFromCart('${item.productId}')">
+            <button class="pos-cart-item-remove" onclick="removeFromCart('${item.productId}', '${item.saleUnit}')">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -389,9 +480,9 @@ function updateTotals() {
     const total = subtotal - discount;
     const tax = 0; // No tax for now
 
-    document.getElementById('cartSubtotal').textContent = `$${subtotal.toFixed(2)}`;
-    document.getElementById('cartTax').textContent = `$${tax.toFixed(2)}`;
-    document.getElementById('cartTotal').textContent = `$${total.toFixed(2)}`;
+    document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
+    document.getElementById('cartTax').textContent = formatMoney(tax);
+    document.getElementById('cartTotal').textContent = formatMoney(total);
     
     // Recalculate change if cash payment is selected
     if (paymentMethod === 'CASH') {
@@ -400,7 +491,7 @@ function updateTotals() {
         const change = amountTendered - finalTotal;
         
         const changeElement = document.getElementById('cartChange');
-        changeElement.textContent = `$${change.toFixed(2)}`;
+        changeElement.textContent = formatMoney(change);
         
         // Color indication
         if (change < 0) {
@@ -461,7 +552,7 @@ function calculateChange() {
     const change = amountTendered - total;
     
     const changeElement = document.getElementById('cartChange');
-    changeElement.textContent = `$${change.toFixed(2)}`;
+    changeElement.textContent = formatMoney(change);
     
     // Color indication
     if (change < 0) {
@@ -509,7 +600,9 @@ async function processCheckout() {
     // Build items array for API
     const items = cart.map(item => ({
         productId: item.productId,
-        quantity: item.quantity
+        quantity: item.quantity,
+        saleUnit: item.saleUnit || 'PIECE',
+        baseQtyFactor: item.baseQtyFactor || 1
     }));
 
     // Show loading
@@ -539,12 +632,15 @@ async function processCheckout() {
         // Refresh the current sales list
         await loadCurrentSales();
 
-        // Show receipt preview modal
+// Show receipt preview modal
         if (response.id) {
             // Load full sale details for receipt preview
             const fullSale = await apiJson(`/sales/${response.id}`);
             showReceiptModal(fullSale);
         }
+
+        // Immediately refresh products after sale to show reduced stock in POS
+        await refreshProducts();
 
     } catch (error) {
         console.error('Checkout error:', error);
@@ -625,7 +721,7 @@ async function loadCurrentSales() {
                         <div class="pos-sale-receipt">${sale.receiptNumber || sale.id.substring(0,8)}</div>
                         <div class="pos-sale-time">${time}</div>
                     </div>
-                    <div class="pos-sale-total">$${Number(sale.totalAmount).toFixed(2)}</div>
+                    <div class="pos-sale-total">${formatMoney(Number(sale.totalAmount))}</div>
                 </div>
             `;
         }).join('');
@@ -655,14 +751,20 @@ function showReceiptModal(sale) {
     currentSaleReceipt = sale;
     
     // Set header info
+    const storeNameEl = document.getElementById('receiptStoreName');
+    if (storeNameEl) {
+        const branchName = String(sale?.location?.name || UserSession.getUser()?.assignedLocation?.name || 'INSHAR MAIN');
+        storeNameEl.textContent = branchName;
+    }
+
     document.getElementById('receiptNumber').textContent = `Receipt: ${sale.receiptNumber || 'N/A'}`;
     document.getElementById('receiptDate').textContent = `Date: ${new Date(sale.createdAt).toLocaleString()}`;
     
     // Build items HTML
     const itemsHtml = sale.items.map(item => `
         <div class="receipt-preview-item">
-            <span class="receipt-preview-item-name">${item.product?.name || 'Product'} x${item.quantity}</span>
-            <span class="receipt-preview-item-price">$${Number(item.totalAmount).toFixed(2)}</span>
+            <span class="receipt-preview-item-name">${item.product?.name || 'Product'} x${item.quantity} (${item.saleUnit || 'PIECE'})</span>
+            <span class="receipt-preview-item-price">${formatMoney(Number(item.totalAmount))}</span>
         </div>
     `).join('');
     document.getElementById('receiptItems').innerHTML = itemsHtml;
@@ -671,7 +773,7 @@ function showReceiptModal(sale) {
     let totalsHtml = `
         <div class="receipt-preview-row">
             <span>Subtotal:</span>
-            <span>$${Number(sale.subtotal).toFixed(2)}</span>
+            <span>${formatMoney(Number(sale.subtotal))}</span>
         </div>
     `;
     
@@ -679,7 +781,7 @@ function showReceiptModal(sale) {
         totalsHtml += `
             <div class="receipt-preview-row">
                 <span>Tax:</span>
-                <span>$${Number(sale.taxAmount).toFixed(2)}</span>
+                <span>${formatMoney(Number(sale.taxAmount))}</span>
             </div>
         `;
     }
@@ -688,7 +790,7 @@ function showReceiptModal(sale) {
         totalsHtml += `
             <div class="receipt-preview-row">
                 <span>Discount:</span>
-                <span>-$${Number(sale.discountAmount).toFixed(2)}</span>
+                <span>-${formatMoney(Number(sale.discountAmount))}</span>
             </div>
         `;
     }
@@ -696,7 +798,7 @@ function showReceiptModal(sale) {
     totalsHtml += `
         <div class="receipt-preview-row grand-total">
             <span>TOTAL:</span>
-            <span>$${Number(sale.totalAmount).toFixed(2)}</span>
+            <span>${formatMoney(Number(sale.totalAmount))}</span>
         </div>
         <div class="receipt-preview-row">
             <span>Payment:</span>
