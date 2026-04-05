@@ -9,9 +9,6 @@ let suppliers = [];
 let stockRequests = [];
 let requestableProducts = [];
 let masterProducts = [];
-const INSHORE_MAIN_LOCATION_ID = '0a71f98e-96a5-4214-9fe9-a09397bf7e87';
-const INSHORE_MAIN_LOCATION_NAME = 'Inshar Main';
-
 let selectedLocationId = localStorage.getItem('selectedLocationId') || '';
 let selectedLocationName = localStorage.getItem('selectedLocationName') || 'All Stores';
 let currentUser = null;
@@ -108,15 +105,6 @@ async function initializeApp() {
         }
     }
 
-    // Enforce owner default scope at startup: Inshore Main
-    if (currentUser?.role === 'OWNER') {
-        if (selectedLocationId !== INSHORE_MAIN_LOCATION_ID) {
-            selectedLocationId = INSHORE_MAIN_LOCATION_ID;
-            selectedLocationName = INSHORE_MAIN_LOCATION_NAME;
-            localStorage.setItem('selectedLocationId', selectedLocationId);
-            localStorage.setItem('selectedLocationName', selectedLocationName);
-        }
-    }
 
     // Apply role-based menu visibility
     applyRoleBasedMenu();
