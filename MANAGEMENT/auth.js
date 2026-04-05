@@ -255,8 +255,8 @@ async function ensureAuth() {
 // Role-based Redirect Logic
 // ============================================
 
-const AUTH_OWNER_MAIN_LOCATION_ID = '0a71f98e-96a5-4214-9fe9-a09397bf7e87';
-const AUTH_OWNER_MAIN_LOCATION_NAME = 'Inshar Main';
+const OWNER_MAIN_LOCATION_ID = '0a71f98e-96a5-4214-9fe9-a09397bf7e87';
+const OWNER_MAIN_LOCATION_NAME = 'Inshar Main';
 
 /**
  * Handle post-login redirect based on user role
@@ -275,8 +275,8 @@ function handleRoleRedirect() {
   } else {
     // Owner/Admin go to dashboard
     if (user.role === 'OWNER') {
-      localStorage.setItem('selectedLocationId', AUTH_OWNER_MAIN_LOCATION_ID);
-      localStorage.setItem('selectedLocationName', AUTH_OWNER_MAIN_LOCATION_NAME);
+      localStorage.setItem('selectedLocationId', OWNER_MAIN_LOCATION_ID);
+      localStorage.setItem('selectedLocationName', OWNER_MAIN_LOCATION_NAME);
     }
     window.location.href = '/index.html';
   }
