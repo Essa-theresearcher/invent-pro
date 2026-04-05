@@ -1877,11 +1877,16 @@ async function saveUserForm(userId) {
             const newUser = await createUser(userData);
             
             // Assign location if selected for new user
-            if (locationId && newUser.id) {
-                await apiJson(`/users/${newUser.id}/location`, {
+            // Backend validates UUID, so only call when id is a UUID.
+            const newUserId = newUser?.id;
+            const isUuid = typeof newUserId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(newUserId);
+            if (locationId && isUuid) {
+                await apiJson(`/users/${newUserId}/location`, {
                     method: 'PUT',
                     body: JSON.stringify({ locationId })
                 });
+            } else if (locationId && !isUuid) {
+                console.warn('Skipping /users/:id/location because returned user id is not UUID:', newUserId);
             }
             
             showToast('success', 'User Added', `${userData.firstName} ${userData.lastName} added.`);
