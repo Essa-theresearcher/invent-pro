@@ -715,13 +715,25 @@ async function loadDashboard() {
         return Number.isFinite(parsed) ? parsed : 0;
     };
 
-    const totalStock = safeProducts.reduce((sum, p) => sum + getEffectiveStock(p), 0);
+    // Location-aware stock metric:
+    // - For selected branch (or manager scope), rely on location stockQuantity only
+    // - For all stores, use global effective stock fallback
+    const totalStock = safeProducts.reduce((sum, p) => {
+        const locationScoped = activeLocationId
+            ? Number(p?.stockQuantity ?? 0)
+            : getEffectiveStock(p);
+        return sum + (Number.isFinite(locationScoped) ? locationScoped : 0);
+    }, 0);
     totalStockEl.textContent = String(totalStock);
 
     const totalValue = safeProducts.reduce((sum, p) => {
         const unitPrice = Number(p?.unitPrice ?? p?.pricePerBaseUnit ?? 0);
         const safePrice = Number.isFinite(unitPrice) ? unitPrice : 0;
-        return sum + (safePrice * getEffectiveStock(p));
+        const qtyForValue = activeLocationId
+            ? Number(p?.stockQuantity ?? 0)
+            : getEffectiveStock(p);
+        const safeQty = Number.isFinite(qtyForValue) ? qtyForValue : 0;
+        return sum + (safePrice * safeQty);
     }, 0);
 
     if (totalValueEl) totalValueEl.textContent = formatMoney(totalValue);
