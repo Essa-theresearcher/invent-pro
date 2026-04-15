@@ -88,4 +88,9 @@ export class CreateProductDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @ApiProperty({ required: false, example: '1234567890123' })
+  @IsString()
+  @IsOptional()
+  barcode?: string;
 }

@@ -128,22 +128,31 @@ export class ProductsService {
       }
     }
     
-    const duplicate = await this.productsRepository.findOne({
-      where: [
-        { sku: createProductDto.sku },
-        { name: createProductDto.name },
-      ],
-    });
+    const sku = String(createProductDto.sku || '').trim();
+    const name = String(createProductDto.name || '').trim();
+    const barcode = createProductDto.barcode ? String(createProductDto.barcode).trim() : null;
 
-    if (duplicate) {
-      throw new ConflictException(
-        `Product with SKU "${createProductDto.sku}" or name "${createProductDto.name}" already exists`
-      );
+    const duplicateWhere: any[] = [
+      ...(sku ? [{ sku, isActive: true }] : []),
+      ...(name ? [{ name, isActive: true }] : []),
+      ...(barcode ? [{ barcode, isActive: true }] : []),
+    ];
+
+    if (duplicateWhere.length > 0) {
+      const duplicate = await this.productsRepository.findOne({
+        where: duplicateWhere,
+      });
+
+      if (duplicate) {
+        throw new ConflictException(
+          `Active product with same SKU, name, or barcode already exists`
+        );
+      }
     }
 
     const product = new Product();
     product.name = createProductDto.name;
-    product.sku = createProductDto.sku;
+    product.sku = sku;
     product.category = createProductDto.category;
     product.unitPrice = createProductDto.price;
     product.stock = createProductDto.stock;
@@ -169,6 +178,7 @@ export class ProductsService {
     
     if (createProductDto.description) product.description = createProductDto.description;
     if (createProductDto.imageUrl) product.imageUrl = createProductDto.imageUrl;
+    if (barcode) product.barcode = barcode;
     
     return this.productsRepository.save(product);
   }
@@ -253,7 +263,13 @@ export class ProductsService {
    */
   async deactivate(id: string): Promise<Product> {
     const product = await this.findOne(id);
+
+    // Release unique keys so a new active product can reuse them
+    const deactivatedSuffix = `__DEACTIVATED__${product.id}`;
     product.isActive = false;
+    product.sku = `${product.sku}${deactivatedSuffix}`;
+    product.barcode = undefined as any;
+
     return this.productsRepository.save(product);
   }
 

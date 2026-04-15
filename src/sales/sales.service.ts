@@ -114,6 +114,8 @@ export class SalesService {
       const saleItemsData: any[] = [];
       let subtotal = 0;
       const taxRate = 0.1; // 10% tax
+      const mainLocationId = await this.getMainLocationId();
+      const shouldUpdateGlobalStock = String(locationId) === String(mainLocationId);
 
       for (const item of items) {
         const { product, stockBalance } = await this.getProductWithStock(
@@ -210,23 +212,26 @@ export class SalesService {
           quantity: newQty,
         });
 
-        // Update global product stock for Admin inventory visibility
-        const currentGlobalStock = Number(itemData.product.stock || 0);
-        const updatedGlobalStock = Math.max(0, currentGlobalStock - Number(itemData.requiredBaseQty));
+        // Update global product stock only when sale is made at MAIN location.
+        // Branch sales must only affect branch stock balances and should not reduce MAIN/global stock.
+        if (shouldUpdateGlobalStock) {
+          const currentGlobalStock = Number(itemData.product.stock || 0);
+          const updatedGlobalStock = Math.max(0, currentGlobalStock - Number(itemData.requiredBaseQty));
 
-        let updatedStatus = itemData.product.status;
-        if (updatedGlobalStock === 0) {
-          updatedStatus = ProductStatus.OUT_OF_STOCK;
-        } else if (updatedGlobalStock < Number(itemData.product.minStock || 0)) {
-          updatedStatus = ProductStatus.LOW_STOCK;
-        } else {
-          updatedStatus = ProductStatus.IN_STOCK;
+          let updatedStatus = itemData.product.status;
+          if (updatedGlobalStock === 0) {
+            updatedStatus = ProductStatus.OUT_OF_STOCK;
+          } else if (updatedGlobalStock < Number(itemData.product.minStock || 0)) {
+            updatedStatus = ProductStatus.LOW_STOCK;
+          } else {
+            updatedStatus = ProductStatus.IN_STOCK;
+          }
+
+          await queryRunner.manager.update(Product, itemData.productId, {
+            stock: updatedGlobalStock,
+            status: updatedStatus,
+          });
         }
-
-        await queryRunner.manager.update(Product, itemData.productId, {
-          stock: updatedGlobalStock,
-          status: updatedStatus,
-        });
 
         // Create inventory movement (SALE_OUT)
         const movementQuantity = Number((-Number(itemData.requiredBaseQty)).toFixed(3));

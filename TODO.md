@@ -1,9 +1,7 @@
-# Product Display Fix Plan
+# Branch Sale vs MAIN Stock Sync Fix Plan
 
-- [x] Analyze frontend product fetch/display flow in `MANAGEMENT/app.js`
-- [x] Analyze backend product endpoints in `src/products/products.controller.ts`
-- [x] Analyze backend product query behavior in `src/products/products.service.ts`
-- [x] Fix frontend inventory/product fetch behavior so products display correctly
-- [x] Adjust backend location product query behavior if needed
-- [x] Validate logic paths and ensure POS/location behavior remains intact
-- [x] Collect and present exact diffs of all changed files
+- [x] Analyze current stock reduction flow in `src/sales/sales.service.ts`
+- [x] Update sale logic so branch sales do not reduce MAIN/global stock
+- [x] Keep MAIN/global stock updates only for MAIN location sales
+- [ ] Run build/type check
+- [ ] Collect and present exact diffs of all changed files
