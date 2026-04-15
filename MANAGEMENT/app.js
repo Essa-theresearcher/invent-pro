@@ -718,6 +718,10 @@ async function loadDashboard() {
     // Location-aware stock metric:
     // - For selected branch (or manager scope), rely on location stockQuantity only
     // - For all stores, use global effective stock fallback
+    const role = currentUser?.role || UserSession.getRole();
+    const managerLocationId = currentUser?.assigned_location_id || currentUser?.assignedLocationId || '';
+    const activeLocationId = role === 'MANAGER' ? managerLocationId : (selectedLocationId || '');
+
     const totalStock = safeProducts.reduce((sum, p) => {
         const locationScoped = activeLocationId
             ? Number(p?.stockQuantity ?? 0)
@@ -745,10 +749,6 @@ async function loadDashboard() {
         return stock <= minStock;
     }).length;
     if (lowStockItemsCountEl) lowStockItemsCountEl.textContent = String(lowStockItemsCount);
-
-    const role = currentUser?.role || UserSession.getRole();
-    const managerLocationId = currentUser?.assigned_location_id || currentUser?.assignedLocationId || '';
-    const activeLocationId = role === 'MANAGER' ? managerLocationId : (selectedLocationId || '');
 
     const now = Date.now();
     const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
