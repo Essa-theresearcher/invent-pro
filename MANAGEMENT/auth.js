@@ -6,7 +6,8 @@
 const API_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:3000'
   : window.location.origin;
-const API_BASE_URL = `${API_BASE}/api/v1`;
+const API_BASE_CANDIDATES = [`${API_BASE}/api/v1`, `${API_BASE}/api`, API_BASE];
+let RESOLVED_API_BASE_URL = null;
 
 // ============================================
 // Token Storage
@@ -138,10 +139,30 @@ async function api(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers
-  });
+  const attempt = async (baseUrl) => {
+    return fetch(`${baseUrl}${endpoint}`, {
+      ...options,
+      headers
+    });
+  };
+
+  let response = null;
+
+  if (RESOLVED_API_BASE_URL) {
+    response = await attempt(RESOLVED_API_BASE_URL);
+  } else {
+    for (const baseUrl of API_BASE_CANDIDATES) {
+      const res = await attempt(baseUrl);
+      if (res.status !== 404) {
+        RESOLVED_API_BASE_URL = baseUrl;
+        response = res;
+        break;
+      }
+    }
+    if (!response) {
+      response = await attempt(API_BASE_CANDIDATES[0]);
+    }
+  }
 
   // Handle 401 Unauthorized
   if (response.status === 401) {
