@@ -61,7 +61,7 @@ import { StockRequest } from './sales/entities/stock-request.entity';
           StockBalance,
           StockRequest,
         ],
-        synchronize: true,
+        synchronize: process.env.TYPEORM_SYNC === 'true',
         logging: false,
       }),
       inject: [ConfigService],
