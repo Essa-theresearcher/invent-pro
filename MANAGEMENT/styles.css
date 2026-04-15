@@ -868,6 +868,7 @@ body {
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.25s ease;
+    width: min(82vw, 300px);
   }
 
   .sidebar.open {
@@ -883,6 +884,39 @@ body {
     height: auto;
     padding: 10px;
     flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .header-search {
+    order: 2;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .header-actions {
+    order: 3;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .store-switcher {
+    width: 100%;
+    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .store-selector {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .active-store-badge {
+    max-width: 38vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .inventory-stats {
@@ -896,6 +930,14 @@ body {
   .settings-nav {
     border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  .data-table {
+    min-width: 760px;
   }
 }
 
@@ -946,8 +988,25 @@ body {
 }
 
 @media (max-width: 640px) {
+  .main-content {
+    padding: 10px;
+  }
+
+  .section-header h1 {
+    font-size: 1.25rem;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stat-card,
+  .inventory-stat-card,
+  .chart-card,
+  .activity-card,
+  .report-card,
+  .table-container {
+    padding: 12px;
   }
 
   .search-box {
@@ -977,14 +1036,52 @@ body {
     min-width: 0;
   }
 
+  .header-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .store-switcher {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .active-store-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  .icon-btn {
+    width: 100%;
+    height: 40px;
+  }
+
+  .user-profile {
+    justify-content: center;
+    width: 100%;
+    border-radius: 10px;
+  }
+
+  .user-profile span {
+    display: none;
+  }
+
   .data-table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
   }
 
-  .user-profile span {
-    display: none;
+  .btn,
+  .filter-select,
+  .store-selector,
+  .search-box input,
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    font-size: 16px;
   }
 
   .form-row {
